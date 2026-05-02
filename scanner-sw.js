@@ -1,16 +1,16 @@
-const CACHE_NAME = 'scanner-v3';
-const BASE = '/MARINHA';
+const CACHE_NAME = 'scanner-v4';
 const URLS_TO_CACHE = [
-  BASE + '/scanner.html',
-  BASE + '/scanner-manifest.json',
-  BASE + '/scanner-icon.svg',
+  '/',
+  '/index.html',
+  '/scanner-manifest.json',
+  '/scanner-icon.svg',
   'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
-      Promise.allSettled(URLS_TO_CACHE.map(url => cache.add(url).catch(e => console.log('skip:', url))))
+      Promise.allSettled(URLS_TO_CACHE.map(url => cache.add(url).catch(() => {})))
     )
   );
   self.skipWaiting();
@@ -26,8 +26,7 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  if(url.hostname.includes('supabase.co')) {
+  if(new URL(event.request.url).hostname.includes('supabase.co')) {
     event.respondWith(fetch(event.request).catch(() =>
       new Response('{"error":"offline"}', {headers:{'Content-Type':'application/json'}})
     ));
@@ -41,7 +40,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(c => c.put(event.request, response.clone()));
         }
         return response;
-      }).catch(() => caches.match(BASE + '/scanner.html'));
+      }).catch(() => caches.match('/'));
     })
   );
 });
