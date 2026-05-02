@@ -1,16 +1,17 @@
-const CACHE_NAME = 'scanner-v4';
+const CACHE_NAME = 'scanner-v5';
 const URLS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/scanner-manifest.json',
-  '/scanner-icon.svg',
+  '/SCANNER/',
+  '/SCANNER/index.html',
+  '/SCANNER/scanner-manifest.json',
+  '/SCANNER/scanner-icon-192.png',
+  '/SCANNER/scanner-icon-512.png',
   'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
-      Promise.allSettled(URLS_TO_CACHE.map(url => cache.add(url).catch(() => {})))
+      Promise.allSettled(URLS_TO_CACHE.map(url => cache.add(url).catch(()=>{})))
     )
   );
   self.skipWaiting();
@@ -40,7 +41,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(c => c.put(event.request, response.clone()));
         }
         return response;
-      }).catch(() => caches.match('/'));
+      }).catch(() => caches.match('/SCANNER/'));
     })
   );
 });
