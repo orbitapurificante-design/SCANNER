@@ -1,0 +1,20 @@
+{
+  "name": "Marinha Scanner",
+  "short_name": "Scanner",
+  "description": "Scanner de Faturas e Documentos",
+  "start_url": "/MARINHA/scanner.html",
+  "scope": "/MARINHA/scanner.html",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628",
+  "orientation": "portrait",
+  "lang": "pt",
+  "icons": [
+    {
+      "src": "/MARINHA/scanner-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
