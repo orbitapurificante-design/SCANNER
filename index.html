@@ -543,29 +543,27 @@ async function api(endpoint, opts) {
   }
 }
 
-function emitirBipe() {
-  try {
-    // Cria o contexto ou retoma se estiver suspenso
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
+function fazerBipe(tipo) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        // Som curto e agudo para adição, mais grave para remoção
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(tipo === 'add' ? 880 : 440, ctx.currentTime);
+        
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+    } catch (e) {
+        console.log("Áudio não suportado ou bloqueado");
     }
-
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
-    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); 
-
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.1); 
-  } catch (e) {
-    console.warn("Áudio bloqueado ou não suportado", e);
-  }
 }
 // ═══════════════════════════════════════════
 // ESTADO
