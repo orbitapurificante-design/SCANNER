@@ -223,7 +223,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           <canvas id="qrCanvas" style="display:none"></canvas>
         </div>
         <button onclick="toggleCam()" class="bP" id="btnCam" style="margin-bottom:8px">
-          📷 ATIVAR CÂMARA
+const dummyCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (dummyCtx.state === 'suspended') dummyCtx.resume();
+  // --------------------------
+
+  if(_camAtiva) { pararCam(); return; }          
+📷 ATIVAR CÂMARA
         </button>
         <!-- Alternativa: tirar foto ou escolher da galeria -->
         <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -540,7 +545,12 @@ async function api(endpoint, opts) {
 
 function emitirBipe() {
   try {
+    // Cria o contexto ou retoma se estiver suspenso
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
@@ -549,12 +559,12 @@ function emitirBipe() {
 
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
-    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); 
+    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); 
 
     oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.15); 
+    oscillator.stop(audioCtx.currentTime + 0.1); 
   } catch (e) {
-    console.warn("Áudio não suportado", e);
+    console.warn("Áudio bloqueado ou não suportado", e);
   }
 }
 // ═══════════════════════════════════════════
