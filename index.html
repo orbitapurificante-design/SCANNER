@@ -551,14 +551,105 @@ async function api(endpoint, opts) {
 // ═══════════════════════════════════════════
 const HOJE = new Date().toISOString().split('T')[0];
 let DB_CLIENTES = [];
-let FATURAS = JSON.parse(localStorage.getItem('scan_faturas') || '[]');
-let FILTRO_FAT = 0; // 0=todas,1=pagas,2=pendentes,3=hoje
+let FATURAS = []; // carregadas do Supabase
+let FILTRO_FAT = 0;
 let _camAtiva = false;
 let _scanInterval = null;
 let _pagoForm = false;
 
-function guardar() {
-  localStorage.setItem('scan_faturas', JSON.stringify(FATURAS));
+// Guardar fatura no Supabase
+async function guardar() {
+  // Manter cópia local como fallback
+  localStorage.setItem('scan_faturas_backup', JSON.stringify(FATURAS));
+}
+
+// Guardar fatura individual no Supabase
+async function guardarFaturaSupabase(fat) {
+  const d = {
+    id: fat.id,
+    nome: fat.nome,
+    nif: fat.nif || null,
+    tipo: fat.tipo,
+    num: fat.num,
+    data: fat.data || null,
+    valor: parseFloat(fat.valor) || 0,
+    pago: fat.pago || false,
+    comercial: fat.comercial || null,
+    criado_em: fat.criadoEm || new Date().toISOString()
+  };
+  const r = await fetch(SB + '/rest/v1/faturas', {
+    method: 'POST',
+    headers: Object.assign({}, hd(), {'Prefer': 'return=minimal'}),
+    body: JSON.stringify(d)
+  });
+  if(!r.ok) {
+    const err = await r.text();
+    console.error('Erro guardar fatura:', err);
+    // Fallback: guardar local
+    localStorage.setItem('scan_faturas_backup', JSON.stringify(FATURAS));
+    return false;
+  }
+  return true;
+}
+
+// Actualizar fatura no Supabase
+async function actualizarFaturaSupabase(fat) {
+  const d = {
+    nome: fat.nome,
+    nif: fat.nif || null,
+    tipo: fat.tipo,
+    num: fat.num,
+    data: fat.data || null,
+    valor: parseFloat(fat.valor) || 0,
+    pago: fat.pago || false,
+    comercial: fat.comercial || null
+  };
+  const r = await fetch(SB + '/rest/v1/faturas?id=eq.' + encodeURIComponent(fat.id), {
+    method: 'PATCH',
+    headers: Object.assign({}, hd(), {'Prefer': 'return=minimal'}),
+    body: JSON.stringify(d)
+  });
+  return r.ok;
+}
+
+// Eliminar fatura no Supabase
+async function eliminarFaturaSupabase(id) {
+  const r = await fetch(SB + '/rest/v1/faturas?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: hd()
+  });
+  return r.ok;
+}
+
+// Carregar faturas do Supabase
+async function carregarFaturas() {
+  // Filtro por comercial
+  let query = 'faturas?select=*&order=data.asc,criado_em.asc';
+  if(!IS_ADMIN && COMERCIAL_ATUAL) {
+    query += '&comercial=eq.' + encodeURIComponent(COMERCIAL_ATUAL);
+  }
+  const data = await api(query);
+  if(data && Array.isArray(data)) {
+    FATURAS = data.map(f => ({
+      id: f.id,
+      nome: f.nome,
+      nif: f.nif,
+      tipo: f.tipo,
+      num: f.num,
+      data: f.data,
+      valor: parseFloat(f.valor) || 0,
+      pago: f.pago || false,
+      comercial: f.comercial,
+      criadoEm: f.criado_em
+    }));
+    console.log('Faturas carregadas:', FATURAS.length);
+    return true;
+  } else {
+    // Fallback para localStorage
+    FATURAS = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    console.warn('Usando faturas locais:', FATURAS.length);
+    return false;
+  }
 }
 
 function uid() { return Date.now() + '_' + Math.random().toString(36).slice(2,7); }
@@ -630,6 +721,10 @@ async function init() {
   }
 
   adicionarCSS();
+
+  // Carregar faturas do Supabase
+  await carregarFaturas();
+
   renderFaturas();
   renderClientes();
   renderRelatorio();
@@ -898,7 +993,7 @@ function limparForm() {
   if(diag) diag.style.display = 'none';
 }
 
-function gravarFatura() {
+async function gravarFatura() {
   const nome  = document.getElementById('fNome').value.trim();
   const tipo  = document.getElementById('fTipo').value;
   const num   = document.getElementById('fNum').value.trim();
@@ -909,7 +1004,6 @@ function gravarFatura() {
   if(!num)  return toast('⚠️ Insira o nº de documento');
   if(!valor) return toast('⚠️ Insira o valor');
 
-  // Verificar duplicado
   if(FATURAS.find(f => f.num === num && f.tipo === tipo)) {
     if(!confirm(`Já existe um documento ${tipo} ${num}. Continuar?`)) return;
   }
@@ -927,14 +1021,23 @@ function gravarFatura() {
     criadoEm: new Date().toISOString()
   };
 
-  FATURAS.unshift(fat);
-  guardar();
-  limparForm();
-  renderFaturas();
-  renderRelatorio();
-  actualizarStats();
-  toast('✅ Fatura gravada!');
-  ir(1); // ir para lista de faturas
+  toast('A guardar...');
+  const ok = await guardarFaturaSupabase(fat);
+  if(ok) {
+    FATURAS.unshift(fat);
+    limparForm();
+    renderFaturas(); renderRelatorio(); actualizarStats();
+    toast('✅ Fatura gravada!');
+    ir(1);
+  } else {
+    // Guardar local como fallback
+    FATURAS.unshift(fat);
+    localStorage.setItem('scan_faturas_backup', JSON.stringify(FATURAS));
+    limparForm();
+    renderFaturas(); renderRelatorio(); actualizarStats();
+    toast('⚠️ Guardado localmente (sem ligação)');
+    ir(1);
+  }
 }
 
 // Autocomplete clientes no scanner
@@ -1037,11 +1140,11 @@ function renderFaturas() {
   actualizarStats();
 }
 
-function togglePago(id) {
+async function togglePago(id) {
   const f = FATURAS.find(x => x.id === id);
   if(!f) return;
   f.pago = !f.pago;
-  guardar();
+  await actualizarFaturaSupabase(f);
   renderFaturas();
   renderRelatorio();
   toast(f.pago ? '✅ Marcado como pago' : '↩ Marcado como pendente');
@@ -1367,7 +1470,7 @@ function editarFatura(id) {
   document.getElementById('mEditFat').classList.add('a');
 }
 
-function guardarFaturaEdit() {
+async function guardarFaturaEdit() {
   const id = document.getElementById('eFatId').value;
   const idx = FATURAS.findIndex(x => x.id === id);
   if(idx < 0) return;
@@ -1381,17 +1484,17 @@ function guardarFaturaEdit() {
   if(IS_ADMIN) {
     FATURAS[idx].comercial = document.getElementById('eFatColab').value || null;
   }
-  guardar();
+  await actualizarFaturaSupabase(FATURAS[idx]);
   fecharModal('mEditFat');
   renderFaturas(); renderRelatorio(); actualizarStats();
   toast('✅ Fatura actualizada!');
 }
 
-function eliminarFaturaEdit() {
+async function eliminarFaturaEdit() {
   const id = document.getElementById('eFatId').value;
   if(!confirm('Eliminar este documento?')) return;
+  await eliminarFaturaSupabase(id);
   FATURAS = FATURAS.filter(x => x.id !== id);
-  guardar();
   fecharModal('mEditFat');
   renderFaturas(); renderRelatorio(); actualizarStats();
   toast('🗑 Eliminado');
