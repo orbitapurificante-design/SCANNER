@@ -12,7 +12,86 @@
 <link rel="apple-touch-icon" sizes="192x192" href="scanner-icon-192.png">
 <title>MARINHA – Scanner</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js">
+// ═══════════════════════════════════════════
+// SINCRONIZAÇÃO E MIGRAÇÃO (OFFLINE/LOCAL)
+// ═══════════════════════════════════════════
+
+// Verificar se há dados para migrar ou sincronizar ao iniciar
+window.addEventListener('load', () => {
+    verificarDadosLocais();
+    // Verificar ligação a cada 30 segundos
+    setInterval(verificarDadosLocais, 30000);
+});
+
+function verificarDadosLocais() {
+    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    const btnSync = document.getElementById('btnSyncOffline');
+    const countSync = document.getElementById('syncCount');
+    const cardMigrar = document.getElementById('cardMigracao');
+    const countMigrar = document.getElementById('migrarCount');
+
+    if (backup.length > 0) {
+        if (btnSync) {
+            btnSync.style.display = 'flex';
+            countSync.textContent = backup.length;
+        }
+        if (cardMigrar) {
+            cardMigrar.style.display = 'block';
+            countMigrar.textContent = backup.length;
+        }
+    } else {
+        if (btnSync) btnSync.style.display = 'none';
+        if (cardMigrar) cardMigrar.style.display = 'none';
+    }
+}
+
+async function sincronizarOffline() {
+    if (!navigator.onLine) {
+        return toast('⚠️ Sem internet. Não é possível sincronizar agora.');
+    }
+    
+    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    if (backup.length === 0) return;
+
+    toast('🔄 A sincronizar ' + backup.length + ' faturas...');
+    
+    let sucessos = 0;
+    let falhas = 0;
+    const novosBackup = [];
+
+    for (const fat of backup) {
+        const ok = await guardarFaturaSupabase(fat);
+        if (ok) {
+            sucessos++;
+        } else {
+            falhas++;
+            novosBackup.push(fat);
+        }
+    }
+
+    localStorage.setItem('scan_faturas_backup', JSON.stringify(novosBackup));
+    verificarDadosLocais();
+    
+    if (sucessos > 0) {
+        toast(`✅ ${sucessos} faturas sincronizadas!`);
+        // Recarregar faturas do Supabase para garantir que estão lá
+        if (typeof carregarFaturasSupabase === 'function') carregarFaturasSupabase();
+    }
+    
+    if (falhas > 0) {
+        toast(`⚠️ ${falhas} faturas não sincronizadas. Tente mais tarde.`);
+    }
+}
+
+async function migrarLocalStorageParaSupabase() {
+    if (!confirm('Deseja enviar todas as faturas locais para o Supabase?')) return;
+    await sincronizarOffline();
+}
+
+// Ajustar a função guardarFatura para usar o backup de forma mais eficiente
+
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--n:#0a1628;--s:#1a4a8a;--g:#c9a84c;--gl:#e8c97a;--bg:#f4f1ec;--mu:#7a8a9a;--gr:#27ae60;--r:#e74c3c;--cr:#f5f0e8}
@@ -326,7 +405,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           <div class="ct" style="margin-bottom:0">Documentos</div>
           <input id="searchFat" placeholder="🔍 pesquisar..." oninput="renderFaturas()" style="padding:6px 10px;border:1.5px solid #eee;border-radius:10px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:48%">
         </div>
-        <div id="listaFat"></div>
+        
+    <div class="card no-print" id="cardMigracao" style="display:none;border:2px solid var(--g);background:rgba(201,168,76,0.05)">
+      <div class="ct" style="color:var(--g)">Migração de Dados Antigos</div>
+      <p style="font-size:12px;margin-bottom:12px;color:var(--mu)">Detetámos faturas guardadas apenas neste dispositivo. Deseja enviá-las para a nuvem (Supabase)?</p>
+      <button class="bP" onclick="migrarLocalStorageParaSupabase()">🚀 MIGRAR <span id="migrarCount">0</span> FATURAS AGORA</button>
+    </div>
+    <div id="listaFat"></div>
       </div>
 
       <!-- Barra subtotais da selecção -->
@@ -1525,6 +1610,85 @@ document.addEventListener('click', e => {
     document.getElementById('acScan').style.display = 'none';
   }
 });
+
+// ═══════════════════════════════════════════
+// SINCRONIZAÇÃO E MIGRAÇÃO (OFFLINE/LOCAL)
+// ═══════════════════════════════════════════
+
+// Verificar se há dados para migrar ou sincronizar ao iniciar
+window.addEventListener('load', () => {
+    verificarDadosLocais();
+    // Verificar ligação a cada 30 segundos
+    setInterval(verificarDadosLocais, 30000);
+});
+
+function verificarDadosLocais() {
+    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    const btnSync = document.getElementById('btnSyncOffline');
+    const countSync = document.getElementById('syncCount');
+    const cardMigrar = document.getElementById('cardMigracao');
+    const countMigrar = document.getElementById('migrarCount');
+
+    if (backup.length > 0) {
+        if (btnSync) {
+            btnSync.style.display = 'flex';
+            countSync.textContent = backup.length;
+        }
+        if (cardMigrar) {
+            cardMigrar.style.display = 'block';
+            countMigrar.textContent = backup.length;
+        }
+    } else {
+        if (btnSync) btnSync.style.display = 'none';
+        if (cardMigrar) cardMigrar.style.display = 'none';
+    }
+}
+
+async function sincronizarOffline() {
+    if (!navigator.onLine) {
+        return toast('⚠️ Sem internet. Não é possível sincronizar agora.');
+    }
+    
+    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    if (backup.length === 0) return;
+
+    toast('🔄 A sincronizar ' + backup.length + ' faturas...');
+    
+    let sucessos = 0;
+    let falhas = 0;
+    const novosBackup = [];
+
+    for (const fat of backup) {
+        const ok = await guardarFaturaSupabase(fat);
+        if (ok) {
+            sucessos++;
+        } else {
+            falhas++;
+            novosBackup.push(fat);
+        }
+    }
+
+    localStorage.setItem('scan_faturas_backup', JSON.stringify(novosBackup));
+    verificarDadosLocais();
+    
+    if (sucessos > 0) {
+        toast(`✅ ${sucessos} faturas sincronizadas!`);
+        // Recarregar faturas do Supabase para garantir que estão lá
+        if (typeof carregarFaturasSupabase === 'function') carregarFaturasSupabase();
+    }
+    
+    if (falhas > 0) {
+        toast(`⚠️ ${falhas} faturas não sincronizadas. Tente mais tarde.`);
+    }
+}
+
+async function migrarLocalStorageParaSupabase() {
+    if (!confirm('Deseja enviar todas as faturas locais para o Supabase?')) return;
+    await sincronizarOffline();
+}
+
+// Ajustar a função guardarFatura para usar o backup de forma mais eficiente
+
 </script>
 </body>
 </html>
