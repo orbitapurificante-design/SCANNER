@@ -89,7 +89,42 @@ async function migrarLocalStorageParaSupabase() {
     await sincronizarOffline();
 }
 
-// Ajustar a função guardarFatura para usar o backup de forma mais eficiente
+
+function forcarVerificacaoDados() {
+    toast('🔍 A procurar dados no dispositivo...');
+    verificarDadosLocais();
+    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    if(backup.length > 0) {
+        toast('✅ Encontradas ' + backup.length + ' faturas!');
+    } else {
+        toast('ℹ️ Nenhuns dados pendentes encontrados.');
+    }
+}
+
+// Melhorar a função verificarDadosLocais para ser mais agressiva na exibição
+const originalVerificarDadosLocais = verificarDadosLocais;
+verificarDadosLocais = function() {
+    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    const btnSync = document.getElementById('btnSyncOffline');
+    const countSync = document.getElementById('syncCount');
+    const cardMigrar = document.getElementById('cardMigracao');
+    const countMigrar = document.getElementById('migrarCount');
+
+    if (backup.length > 0) {
+        if (btnSync) {
+            btnSync.style.display = 'inline-flex';
+            countSync.textContent = backup.length;
+        }
+        if (cardMigrar) {
+            cardMigrar.style.display = 'block';
+            countMigrar.textContent = backup.length;
+        }
+    } else {
+        if (btnSync) btnSync.style.display = 'none';
+        if (cardMigrar) cardMigrar.style.display = 'none';
+    }
+};
+
 
 </script>
 <style>
@@ -239,11 +274,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 
 <!-- ── APP ── -->
 <div id="eApp">
+  
   <div class="cab">
-    <div>
+    <div style="flex:1; display:flex; align-items:center; gap:10px">
       <div class="cabT">Scanner · Faturas</div>
-      <div style="color:var(--g);font-size:10px;font-weight:700;letter-spacing:.5px" id="cabComercial"></div>
+      <button id="btnSyncOffline" onclick="sincronizarOffline()" style="display:none; background:var(--g); color:var(--n); border:none; border-radius:10px; padding:6px 12px; font-size:11px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.2); align-items:center; gap:5px">
+        🔄 SINCRONIZAR (<span id="syncCount">0</span>)
+      </button>
     </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="color:var(--g);font-size:11px;font-weight:700" id="cabData"></div>
+      <button onclick="logout()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif">SAIR</button>
+    </div>
+  </div>
+
     <div style="display:flex;align-items:center;gap:10px">
       <div style="color:var(--g);font-size:11px;font-weight:700" id="cabData"></div>
       <button onclick="logout()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif">SAIR</button>
@@ -1687,7 +1731,42 @@ async function migrarLocalStorageParaSupabase() {
     await sincronizarOffline();
 }
 
-// Ajustar a função guardarFatura para usar o backup de forma mais eficiente
+
+function forcarVerificacaoDados() {
+    toast('🔍 A procurar dados no dispositivo...');
+    verificarDadosLocais();
+    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    if(backup.length > 0) {
+        toast('✅ Encontradas ' + backup.length + ' faturas!');
+    } else {
+        toast('ℹ️ Nenhuns dados pendentes encontrados.');
+    }
+}
+
+// Melhorar a função verificarDadosLocais para ser mais agressiva na exibição
+const originalVerificarDadosLocais = verificarDadosLocais;
+verificarDadosLocais = function() {
+    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+    const btnSync = document.getElementById('btnSyncOffline');
+    const countSync = document.getElementById('syncCount');
+    const cardMigrar = document.getElementById('cardMigracao');
+    const countMigrar = document.getElementById('migrarCount');
+
+    if (backup.length > 0) {
+        if (btnSync) {
+            btnSync.style.display = 'inline-flex';
+            countSync.textContent = backup.length;
+        }
+        if (cardMigrar) {
+            cardMigrar.style.display = 'block';
+            countMigrar.textContent = backup.length;
+        }
+    } else {
+        if (btnSync) btnSync.style.display = 'none';
+        if (cardMigrar) cardMigrar.style.display = 'none';
+    }
+};
+
 
 </script>
 </body>
