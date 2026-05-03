@@ -12,107 +12,7 @@
 <link rel="apple-touch-icon" sizes="192x192" href="scanner-icon-192.png">
 <title>MARINHA – Scanner</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js">
-// ═══════════════════════════════════════════
-// DIAGNÓSTICO E MIGRAÇÃO DEFINITIVA
-// ═══════════════════════════════════════════
-
-function diagnosticoEMigracao() {
-    const chaves = Object.keys(localStorage);
-    const infoEl = document.getElementById('infoMemoriaPin');
-    
-    toast('🔍 A analisar memória...');
-    
-    let faturasEncontradas = [];
-    let chaveOrigem = '';
-
-    // Procurar em todas as chaves possíveis
-    const chavesPossiveis = ['scan_faturas_backup', 'faturas', 'scan_faturas', 'dados_faturas', 'backup_faturas'];
-    
-    for (const chave of chaves) {
-        try {
-            const dado = JSON.parse(localStorage.getItem(chave));
-            if (Array.isArray(dado) && dado.length > 0 && (dado[0].num || dado[0].nome)) {
-                faturasEncontradas = dado;
-                chaveOrigem = chave;
-                break;
-            }
-        } catch(e) {}
-    }
-
-    if (faturasEncontradas.length > 0) {
-        if (infoEl) infoEl.innerHTML = `<span style="color:var(--g); font-weight:bold">✅ Encontradas ${faturasEncontradas.length} faturas!</span>`;
-        if (confirm(`Encontramos ${faturasEncontradas.length} faturas antigas na memória. Deseja enviá-las agora para o Supabase?`)) {
-            executarMigracao(faturasEncontradas, chaveOrigem);
-        }
-    } else {
-        if (infoEl) infoEl.innerHTML = '<span style="color:#ff6b6b">❌ Nenhuma fatura encontrada neste dispositivo.</span>';
-        toast('Nenhum dado pendente encontrado.');
-    }
-}
-
-async function executarMigracao(lista, chave) {
-    if (!navigator.onLine) return toast('⚠️ Sem internet para migrar.');
-    
-    toast('🚀 A enviar ' + lista.length + ' faturas...');
-    let ok = 0;
-    let erro = 0;
-
-    for (const fat of lista) {
-        const res = await guardarFaturaSupabase(fat);
-        if (res) ok++; else erro++;
-    }
-
-    if (ok > 0) {
-        toast(`✅ ${ok} faturas migradas com sucesso!`);
-        localStorage.setItem('scan_faturas_backup', '[]');
-        if (chave !== 'scan_faturas_backup') localStorage.removeItem(chave);
-    }
-    if (erro > 0) toast(`⚠️ ${erro} faturas falharam. Tente novamente.`);
-    
-    verificarDadosLocais();
-}
-
-function verificarDadosLocais() {
-    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
-    const btnSync = document.getElementById('btnSyncOffline');
-    const countSync = document.getElementById('syncCount');
-
-    if (backup.length > 0) {
-        if (btnSync) {
-            btnSync.style.display = 'inline-flex';
-            countSync.textContent = backup.length;
-        }
-    } else {
-        if (btnSync) btnSync.style.display = 'none';
-    }
-}
-
-async function sincronizarOffline() {
-    if (!navigator.onLine) return toast('⚠️ Sem internet.');
-    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
-    if (backup.length === 0) return;
-    await executarMigracao(backup, 'scan_faturas_backup');
-}
-
-// Sobrepor a função de guardar original para garantir backup
-const originalGuardarFaturaSupabase = guardarFaturaSupabase;
-guardarFaturaSupabase = async function(fat) {
-    const res = await originalGuardarFaturaSupabase(fat);
-    if (!res) {
-        const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
-        if (!backup.find(f => f.id === fat.id)) {
-            backup.push(fat);
-            localStorage.setItem('scan_faturas_backup', JSON.stringify(backup));
-            verificarDadosLocais();
-        }
-    }
-    return res;
-};
-
-window.addEventListener('load', verificarDadosLocais);
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--n:#0a1628;--s:#1a4a8a;--g:#c9a84c;--gl:#e8c97a;--bg:#f4f1ec;--mu:#7a8a9a;--gr:#27ae60;--r:#e74c3c;--cr:#f5f0e8}
@@ -244,14 +144,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
     <div style="font-size:10px;color:rgba(255,255,255,.35);text-align:center;margin-top:6px">Podes editar os nomes no código</div>
   </div>
 
-  
-    <div style="width:100%;max-width:320px;margin-bottom:16px;text-align:center">
-      <button onclick="diagnosticoEMigracao()" style="width:100%;padding:12px;background:rgba(201,168,76,0.2);border:1.5px solid var(--g);border-radius:14px;color:var(--g);font-size:13px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif">
-        🔍 RECUPERAR FATURAS ANTIGAS
-      </button>
-      <div id="infoMemoriaPin" style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:6px">Clique aqui se as faturas antigas não aparecerem.</div>
-    </div>
-    <div class="pDots" id="pDots">
+  <div class="pDots" id="pDots">
     <div class="pDot" id="pd0"></div><div class="pDot" id="pd1"></div>
     <div class="pDot" id="pd2"></div><div class="pDot" id="pd3"></div>
   </div>
@@ -267,20 +160,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 
 <!-- ── APP ── -->
 <div id="eApp">
-  
   <div class="cab">
-    <div style="flex:1; display:flex; align-items:center; gap:10px">
+    <div>
       <div class="cabT">Scanner · Faturas</div>
-      <button id="btnSyncOffline" onclick="sincronizarOffline()" style="display:none; background:var(--g); color:var(--n); border:none; border-radius:10px; padding:6px 12px; font-size:11px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.2); align-items:center; gap:5px">
-        🔄 SINCRONIZAR (<span id="syncCount">0</span>)
-      </button>
+      <div style="color:var(--g);font-size:10px;font-weight:700;letter-spacing:.5px" id="cabComercial"></div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="color:var(--g);font-size:11px;font-weight:700" id="cabData"></div>
-      <button onclick="logout()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif">SAIR</button>
-    </div>
-  </div>
-
     <div style="display:flex;align-items:center;gap:10px">
       <div style="color:var(--g);font-size:11px;font-weight:700" id="cabData"></div>
       <button onclick="logout()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif">SAIR</button>
@@ -312,6 +196,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
   <!-- ══════════════════════════════════════ -->
   <div class="ecra a" id="ecra0">
     <div class="s">
+
+      <!-- Botão migração localStorage → Supabase (aparece só se houver dados locais) -->
+      <div id="migracaoDiv" style="display:none;background:linear-gradient(135deg,#c9a84c,#e8c97a);border-radius:14px;padding:14px 16px;margin-bottom:12px">
+        <div style="font-weight:800;font-size:14px;color:#0a1628;margin-bottom:4px">📦 Faturas locais encontradas!</div>
+        <div style="font-size:12px;color:#4a3800;margin-bottom:10px" id="migracaoInfo">Tens faturas guardadas localmente que podem ser migradas para o Supabase.</div>
+        <button onclick="migrarFaturasLocais()" style="width:100%;padding:10px;background:#0a1628;color:#c9a84c;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">
+          ⬆️ MIGRAR FATURAS PARA SUPABASE
+        </button>
+      </div>
 
       <div class="scan-box">
         <div class="ct" style="color:rgba(255,255,255,.6);margin-bottom:10px">QR · Documento</div>
@@ -631,9 +524,7 @@ const NOMES_CONFIG = {
   'comercial2': 'Comercial 2',
   'comercial3': 'Comercial 3',
 };
-const SB = 'https://opzmuzogxfzeqwjxmfvc.supabase.co';
-const SK = 'sb_publishable_e_Bd_rx2rfzBeIrbyGxCwA_SfXklv4s';
-const BUCKET = 'marinha';
+const SK  = 'sb_publishable_e_Bd_rx2rfzBeIrbyGxCwA_SfXklv4s';
 
 // Estado do utilizador atual
 let COMERCIAL_ATUAL = null; // 'admin' | 'comercial1' | ...
@@ -840,6 +731,17 @@ async function init() {
 
   // Carregar faturas do Supabase
   await carregarFaturas();
+
+  // Verificar se há faturas locais para migrar
+  const locais = JSON.parse(localStorage.getItem('scan_faturas') || localStorage.getItem('scan_faturas_backup') || '[]');
+  if(locais.length > 0) {
+    const migDiv = document.getElementById('migracaoDiv');
+    const migInfo = document.getElementById('migracaoInfo');
+    if(migDiv) {
+      migDiv.style.display = 'block';
+      migInfo.textContent = `Tens ${locais.length} fatura(s) guardadas localmente. Clica para as enviar para o Supabase.`;
+    }
+  }
 
   renderFaturas();
   renderClientes();
@@ -1563,6 +1465,40 @@ function abrirJanelaImpressao(conteudo) {
   w.document.close();
   setTimeout(()=>w.print(), 400);
 }
+// ═══════════════════════════════════════════
+// MIGRAÇÃO localStorage → SUPABASE
+// ═══════════════════════════════════════════
+async function migrarFaturasLocais() {
+  const locais = JSON.parse(localStorage.getItem('scan_faturas') || localStorage.getItem('scan_faturas_backup') || '[]');
+  if(!locais.length) { toast('Sem faturas locais para migrar'); return; }
+
+  if(!confirm(`Migrar ${locais.length} fatura(s) para o Supabase?\n\nAs faturas sem colaborador serão atribuídas a: ${NOMES_CONFIG[COMERCIAL_ATUAL]||COMERCIAL_ATUAL}`)) return;
+
+  let ok = 0, erro = 0;
+  const btn = document.querySelector('#migracaoDiv button');
+  if(btn) btn.textContent = '⏳ A migrar...';
+
+  for(const fat of locais) {
+    const existe = FATURAS.find(f => f.id === fat.id || (f.num === fat.num && f.tipo === fat.tipo && f.nome === fat.nome));
+    if(existe) { ok++; continue; }
+    if(!fat.comercial) fat.comercial = COMERCIAL_ATUAL;
+    if(!fat.criadoEm) fat.criadoEm = new Date().toISOString();
+    const sucesso = await guardarFaturaSupabase(fat);
+    if(sucesso) ok++; else erro++;
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  if(ok > 0) {
+    localStorage.removeItem('scan_faturas');
+    localStorage.removeItem('scan_faturas_backup');
+    await carregarFaturas();
+    renderFaturas(); renderRelatorio(); actualizarStats();
+    document.getElementById('migracaoDiv').style.display = 'none';
+    toast(`✅ ${ok} fatura(s) migradas!`);
+  }
+  if(erro > 0) toast(`⚠️ ${erro} erro(s) — tenta novamente`);
+}
+
 function editarFatura(id) {
   const f = FATURAS.find(x => x.id === id);
   if(!f) return;
@@ -1641,106 +1577,6 @@ document.addEventListener('click', e => {
     document.getElementById('acScan').style.display = 'none';
   }
 });
-
-// ═══════════════════════════════════════════
-// DIAGNÓSTICO E MIGRAÇÃO DEFINITIVA
-// ═══════════════════════════════════════════
-
-function diagnosticoEMigracao() {
-    const chaves = Object.keys(localStorage);
-    const infoEl = document.getElementById('infoMemoriaPin');
-    
-    toast('🔍 A analisar memória...');
-    
-    let faturasEncontradas = [];
-    let chaveOrigem = '';
-
-    // Procurar em todas as chaves possíveis
-    const chavesPossiveis = ['scan_faturas_backup', 'faturas', 'scan_faturas', 'dados_faturas', 'backup_faturas'];
-    
-    for (const chave of chaves) {
-        try {
-            const dado = JSON.parse(localStorage.getItem(chave));
-            if (Array.isArray(dado) && dado.length > 0 && (dado[0].num || dado[0].nome)) {
-                faturasEncontradas = dado;
-                chaveOrigem = chave;
-                break;
-            }
-        } catch(e) {}
-    }
-
-    if (faturasEncontradas.length > 0) {
-        if (infoEl) infoEl.innerHTML = `<span style="color:var(--g); font-weight:bold">✅ Encontradas ${faturasEncontradas.length} faturas!</span>`;
-        if (confirm(`Encontramos ${faturasEncontradas.length} faturas antigas na memória. Deseja enviá-las agora para o Supabase?`)) {
-            executarMigracao(faturasEncontradas, chaveOrigem);
-        }
-    } else {
-        if (infoEl) infoEl.innerHTML = '<span style="color:#ff6b6b">❌ Nenhuma fatura encontrada neste dispositivo.</span>';
-        toast('Nenhum dado pendente encontrado.');
-    }
-}
-
-async function executarMigracao(lista, chave) {
-    if (!navigator.onLine) return toast('⚠️ Sem internet para migrar.');
-    
-    toast('🚀 A enviar ' + lista.length + ' faturas...');
-    let ok = 0;
-    let erro = 0;
-
-    for (const fat of lista) {
-        const res = await guardarFaturaSupabase(fat);
-        if (res) ok++; else erro++;
-    }
-
-    if (ok > 0) {
-        toast(`✅ ${ok} faturas migradas com sucesso!`);
-        localStorage.setItem('scan_faturas_backup', '[]');
-        if (chave !== 'scan_faturas_backup') localStorage.removeItem(chave);
-    }
-    if (erro > 0) toast(`⚠️ ${erro} faturas falharam. Tente novamente.`);
-    
-    verificarDadosLocais();
-}
-
-function verificarDadosLocais() {
-    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
-    const btnSync = document.getElementById('btnSyncOffline');
-    const countSync = document.getElementById('syncCount');
-
-    if (backup.length > 0) {
-        if (btnSync) {
-            btnSync.style.display = 'inline-flex';
-            countSync.textContent = backup.length;
-        }
-    } else {
-        if (btnSync) btnSync.style.display = 'none';
-    }
-}
-
-async function sincronizarOffline() {
-    if (!navigator.onLine) return toast('⚠️ Sem internet.');
-    const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
-    if (backup.length === 0) return;
-    await executarMigracao(backup, 'scan_faturas_backup');
-}
-
-// Sobrepor a função de guardar original para garantir backup
-const originalGuardarFaturaSupabase = guardarFaturaSupabase;
-guardarFaturaSupabase = async function(fat) {
-    const res = await originalGuardarFaturaSupabase(fat);
-    if (!res) {
-        const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
-        if (!backup.find(f => f.id === fat.id)) {
-            backup.push(fat);
-            localStorage.setItem('scan_faturas_backup', JSON.stringify(backup));
-            verificarDadosLocais();
-        }
-    }
-    return res;
-};
-
-window.addEventListener('load', verificarDadosLocais);
-
 </script>
 </body>
 </html>
