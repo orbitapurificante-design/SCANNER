@@ -538,6 +538,25 @@ async function api(endpoint, opts) {
   }
 }
 
+function emitirBipe() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); 
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.15); 
+  } catch (e) {
+    console.warn("Áudio não suportado", e);
+  }
+}
 // ═══════════════════════════════════════════
 // ESTADO
 // ═══════════════════════════════════════════
@@ -876,9 +895,14 @@ function lerQR() {
   canvas.height = vid.videoHeight;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(vid, 0, 0);
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-  if(code) processarQR(code.data);
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(imgData.data, imgData.width, imgData.height);
+  
+  if(code) {
+    emitirBipe(); // <--- ESTA É A LINHA NOVA
+    processarQR(code.data);
+    pararCam();
+  }
 }
 
 function processarQR(texto) {
