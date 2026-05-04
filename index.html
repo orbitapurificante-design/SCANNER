@@ -13,6 +13,7 @@
 <title>MARINHA – Scanner</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--n:#0a1628;--s:#1a4a8a;--g:#c9a84c;--gl:#e8c97a;--bg:#f4f1ec;--mu:#7a8a9a;--gr:#27ae60;--r:#e74c3c;--cr:#f5f0e8}
@@ -533,49 +534,97 @@ const NOMES_CONFIG = {
   'comercial2': 'Comercial 2',
   'comercial3': 'Comercial 3',
 };
-const SB = 'https://opzmuzogxfzeqwjxmfvc.supabase.co';
-// ⚠️ CHAVE SUPABASE: vai a https://supabase.com → projeto → Settings → API → "anon public" (começa com eyJ...)
-const SK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wem11em9neGZ6ZXF3anhtZnZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODMyNzUsImV4cCI6MjA4NzQ1OTI3NX0.nvf4dlF5IXehQ3g33jzw0K43r9LGrHBAdnCT5EvhWuM';
+// ── SUPABASE SDK ──────────────────────────────
+const SB_URL = 'https://opzmuzogxfzeqwjxmfvc.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wem11em9neGZ6ZXF3anhtZnZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODMyNzUsImV4cCI6MjA4NzQ1OTI3NX0.nvf4dlF5IXehQ3g33jzw0K43r9LGrHBAdnCT5EvhWuM';
 const BUCKET = 'marinha';
+const db = supabase.createClient(SB_URL, SB_KEY);
 
 // Estado do utilizador atual
-let COMERCIAL_ATUAL = null; // 'admin' | 'comercial1' | ...
+let COMERCIAL_ATUAL = null;
 let IS_ADMIN = false;
-
-function hd() {
-  return {
-    'apikey': SK,
-    'Authorization': 'Bearer ' + SK,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  };
-}
-
-async function api(endpoint, opts) {
-  try {
-    const url = SB + '/rest/v1/' + endpoint;
-    const r = await fetch(url, Object.assign({ headers: hd() }, opts));
-    const txt = await r.text();
-    if(!r.ok) {
-      console.error('❌ API erro:', r.status, endpoint, txt.substring(0,300));
-      // Mostrar diagnóstico na UI se for erro de autenticação
-      if(r.status === 401 || r.status === 403) {
-        mostrarErroDB('Chave Supabase inválida (erro ' + r.status + '). Vai a Supabase → Settings → API → anon public key (eyJ...) e substitui no código.');
-      }
-      return null;
-    }
-    try { return JSON.parse(txt); } catch(e) { return null; }
-  } catch(e) {
-    console.error('❌ API falha de rede:', endpoint, e.message);
-    mostrarErroDB('Sem ligação ao Supabase: ' + e.message);
-    return null;
-  }
-}
 
 function mostrarErroDB(msg) {
   const wrap = document.getElementById('erroDBMsg');
   const txt = document.getElementById('erroDBTexto');
   if(wrap && txt) { txt.textContent = msg; wrap.style.display = 'block'; }
+}
+function esconderErroDB() {
+  const wrap = document.getElementById('erroDBMsg');
+  if(wrap) wrap.style.display = 'none';
+}
+
+// ── FUNÇÕES SDK (substituem api()) ────────────
+async function dbSelect(tabela, filtros) {
+  try {
+    let q = db.from(tabela).select('*');
+    if(filtros) Object.entries(filtros).forEach(([k,v]) => { q = q.eq(k, v); });
+    const { data, error } = await q;
+    if(error) throw error;
+    esconderErroDB();
+    return data || [];
+  } catch(e) {
+    console.error('❌ dbSelect erro:', tabela, e.message);
+    mostrarErroDB('Erro ligação BD: ' + e.message);
+    return [];
+  }
+}
+
+async function dbInsert(tabela, obj) {
+  try {
+    const { data, error } = await db.from(tabela).insert(obj).select();
+    if(error) throw error;
+    console.log('✅ dbInsert OK:', tabela, data);
+    return data;
+  } catch(e) {
+    console.error('❌ dbInsert erro:', tabela, e.message);
+    mostrarErroDB('Erro ao guardar: ' + e.message);
+    return null;
+  }
+}
+
+async function dbUpdate(tabela, obj, filtros) {
+  try {
+    let q = db.from(tabela).update(obj);
+    if(filtros) Object.entries(filtros).forEach(([k,v]) => { q = q.eq(k, v); });
+    const { data, error } = await q.select();
+    if(error) throw error;
+    return data;
+  } catch(e) {
+    console.error('❌ dbUpdate erro:', tabela, e.message);
+    mostrarErroDB('Erro ao actualizar: ' + e.message);
+    return null;
+  }
+}
+
+async function dbDelete(tabela, filtros) {
+  try {
+    let q = db.from(tabela).delete();
+    if(filtros) Object.entries(filtros).forEach(([k,v]) => { q = q.eq(k, v); });
+    const { error } = await q;
+    if(error) throw error;
+    return true;
+  } catch(e) {
+    console.error('❌ dbDelete erro:', tabela, e.message);
+    mostrarErroDB('Erro ao apagar: ' + e.message);
+    return false;
+  }
+}
+
+// Compatibilidade com chamadas api() antigas ainda no código
+async function api(endpoint, opts) {
+  const method = (opts && opts.method) || 'GET';
+  const body = opts && opts.body ? JSON.parse(opts.body) : null;
+  const [tabela, qs] = endpoint.split('?');
+  const filtros = {};
+  if(qs) qs.split('&').forEach(p => {
+    const m = p.match(/^(\w+)=eq\.(.+)$/);
+    if(m) filtros[m[1]] = decodeURIComponent(m[2]);
+  });
+  if(method === 'GET') return dbSelect(tabela, Object.keys(filtros).length ? filtros : null);
+  if(method === 'POST') return dbInsert(tabela, body);
+  if(method === 'PATCH') return dbUpdate(tabela, body, Object.keys(filtros).length ? filtros : null);
+  if(method === 'DELETE') return dbDelete(tabela, Object.keys(filtros).length ? filtros : null);
 }
 
 let audioCtx = null;
@@ -735,19 +784,16 @@ async function guardarFaturaSupabase(fat, isSync = false) {
     comercial: fat.comercial || null,
     criado_em: fat.criadoEm || new Date().toISOString()
   };
-  const r = await fetch(SB + '/rest/v1/faturas', {
-    method: 'POST',
-    headers: Object.assign({}, hd(), {'Prefer': 'return=minimal'}),
-    body: JSON.stringify(d)
-  });
-  if(!r.ok) {
-    const err = await r.text();
-    console.error('Erro guardar fatura:', err);
-    // Fallback: guardar local (apenas se não for durante uma sincronização)
-    if (!isSync) {
+  try {
+    const { error } = await db.from('faturas').insert(d);
+    if(error) throw error;
+    console.log('✅ Fatura guardada no Supabase:', d.id);
+    return true;
+  } catch(e) {
+    console.error('❌ Erro guardar fatura:', e.message);
+    if(!isSync) {
       const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
-      // Evitar duplicados no backup
-      if (!backup.find(f => f.id === fat.id)) {
+      if(!backup.find(f => f.id === fat.id)) {
         backup.unshift(fat);
         localStorage.setItem('scan_faturas_backup', JSON.stringify(backup));
       }
@@ -755,66 +801,55 @@ async function guardarFaturaSupabase(fat, isSync = false) {
     }
     return false;
   }
-  return true;
 }
 
-// Actualizar fatura no Supabase
 async function actualizarFaturaSupabase(fat) {
-  const d = {
-    nome: fat.nome,
-    nif: fat.nif || null,
-    tipo: fat.tipo,
-    num: fat.num,
-    data: fat.data || null,
-    valor: parseFloat(fat.valor) || 0,
-    pago: fat.pago || false,
-    comercial: fat.comercial || null
-  };
-  const r = await fetch(SB + '/rest/v1/faturas?id=eq.' + encodeURIComponent(fat.id), {
-    method: 'PATCH',
-    headers: Object.assign({}, hd(), {'Prefer': 'return=minimal'}),
-    body: JSON.stringify(d)
-  });
-  return r.ok;
+  try {
+    const { error } = await db.from('faturas').update({
+      nome: fat.nome, nif: fat.nif || null, tipo: fat.tipo,
+      num: fat.num, data: fat.data || null,
+      valor: parseFloat(fat.valor) || 0,
+      pago: fat.pago || false, comercial: fat.comercial || null
+    }).eq('id', fat.id);
+    if(error) throw error;
+    return true;
+  } catch(e) {
+    console.error('❌ Erro actualizar fatura:', e.message);
+    return false;
+  }
 }
 
-// Eliminar fatura no Supabase
 async function eliminarFaturaSupabase(id) {
-  const r = await fetch(SB + '/rest/v1/faturas?id=eq.' + encodeURIComponent(id), {
-    method: 'DELETE',
-    headers: hd()
-  });
-  return r.ok;
+  try {
+    const { error } = await db.from('faturas').delete().eq('id', id);
+    if(error) throw error;
+    return true;
+  } catch(e) {
+    console.error('❌ Erro eliminar fatura:', e.message);
+    return false;
+  }
 }
 
 // Carregar faturas do Supabase
 async function carregarFaturas() {
-  // Filtro por comercial
-  let query = 'faturas?select=*&order=data.asc,criado_em.asc';
-  if(!IS_ADMIN && COMERCIAL_ATUAL) {
-    query += '&comercial=eq.' + encodeURIComponent(COMERCIAL_ATUAL);
-  }
-  const data = await api(query);
-  if(data && Array.isArray(data)) {
-    FATURAS = data.map(f => ({
-      id: f.id,
-      nome: f.nome,
-      nif: f.nif,
-      tipo: f.tipo,
-      num: f.num,
-      data: f.data,
-      valor: parseFloat(f.valor) || 0,
-      pago: f.pago || false,
-      comercial: f.comercial,
-      criadoEm: f.criado_em
+  try {
+    let q = db.from('faturas').select('*').order('data', { ascending: true });
+    if(!IS_ADMIN && COMERCIAL_ATUAL) q = q.eq('comercial', COMERCIAL_ATUAL);
+    const { data, error } = await q;
+    if(error) throw error;
+    FATURAS = (data || []).map(f => ({
+      id: f.id, nome: f.nome, nif: f.nif, tipo: f.tipo,
+      num: f.num, data: f.data, valor: parseFloat(f.valor) || 0,
+      pago: f.pago || false, comercial: f.comercial, criadoEm: f.criado_em
     }));
-    console.log('Faturas carregadas:', FATURAS.length);
+    console.log('✅ Faturas carregadas:', FATURAS.length);
+    esconderErroDB();
     verificarPendentes();
     return true;
-  } else {
-    // Fallback para localStorage
+  } catch(e) {
+    console.error('❌ carregarFaturas erro:', e.message);
+    mostrarErroDB('Erro ao carregar faturas: ' + e.message);
     FATURAS = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
-    console.warn('Usando faturas locais:', FATURAS.length);
     return false;
   }
 }
@@ -877,45 +912,43 @@ async function init() {
   const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   document.getElementById('cabData').textContent = `${dias[d.getDay()]} ${d.getDate()} ${meses[d.getMonth()]}`;
 
-  // Definir datas ANTES de renderizar
   document.getElementById('fData').value = HOJE;
   document.getElementById('relDe').value = HOJE;
   document.getElementById('relAte').value = HOJE;
 
-  // ── TESTE DE LIGAÇÃO AO SUPABASE ──
+  // ── TESTE DE LIGAÇÃO AO SUPABASE via SDK ──
   console.log('🔌 A testar ligação ao Supabase...');
-  const testeR = await fetch(SB + '/rest/v1/faturas?select=id&limit=1', { headers: hd() });
-  console.log('Supabase status:', testeR.status);
-  if(!testeR.ok) {
-    const errTxt = await testeR.text();
-    console.error('Supabase erro:', errTxt);
-    mostrarErroDB(`Erro ${testeR.status} — A chave API pode estar errada. Vai a Supabase → Settings → API → copia a "anon public" key (eyJ...) e substitui no código onde está SK.`);
-  } else {
-    // Esconder erro se estava visível
-    const wrap = document.getElementById('erroDBMsg');
-    if(wrap) wrap.style.display = 'none';
+  try {
+    const { data, error } = await db.from('faturas').select('id').limit(1);
+    if(error) throw error;
     console.log('✅ Supabase OK');
+    esconderErroDB();
+  } catch(e) {
+    console.error('❌ Supabase erro:', e.message);
+    mostrarErroDB('Erro de ligação: ' + e.message);
   }
 
-  // Carregar clientes do Supabase
-  const cli = await api('clientes?select=*&order=nome.asc');
-  if(cli && Array.isArray(cli)) {
-    DB_CLIENTES = cli;
+  // Carregar clientes
+  try {
+    const { data: cli, error } = await db.from('clientes').select('*').order('nome', { ascending: true });
+    if(error) throw error;
+    DB_CLIENTES = cli || [];
+    console.log('✅ Clientes carregados:', DB_CLIENTES.length);
+  } catch(e) {
+    console.error('❌ Clientes erro:', e.message);
   }
 
   adicionarCSS();
-
-  // Carregar faturas do Supabase
   await carregarFaturas();
 
-  // Verificar se há faturas locais para migrar
+  // Verificar faturas locais para migrar
   const locais = JSON.parse(localStorage.getItem('scan_faturas') || localStorage.getItem('scan_faturas_backup') || '[]');
   if(locais.length > 0) {
     const migDiv = document.getElementById('migracaoDiv');
     const migInfo = document.getElementById('migracaoInfo');
     if(migDiv) {
       migDiv.style.display = 'block';
-      migInfo.textContent = `Tens ${locais.length} fatura(s) guardadas localmente. Clica para as enviar para o Supabase.`;
+      if(migInfo) migInfo.textContent = `Tens ${locais.length} fatura(s) guardadas localmente. Clica para as enviar para o Supabase.`;
     }
   }
 
@@ -1413,41 +1446,18 @@ function renderClientes() {
 async function recarregarClientes() {
   const el = document.getElementById('listaCli');
   el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu)">A carregar...</div>';
-
-  // Tentar com select simples
   try {
-    const r = await fetch(SB + '/rest/v1/clientes?select=id,nome,tel,nif,denom&limit=100', {
-      headers: {
-        'apikey': SK,
-        'Authorization': 'Bearer ' + SK,
-        'Accept': 'application/json'
-      }
-    });
-    const txt = await r.text();
-    console.log('Status:', r.status, 'Body:', txt.substring(0,200));
-
-    if(r.ok) {
-      const data = JSON.parse(txt);
-      if(Array.isArray(data) && data.length > 0) {
-        DB_CLIENTES = data;
-        renderClientes();
-        toast('✅ ' + data.length + ' clientes carregados');
-        return;
-      } else {
-        el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--mu)">
-          <div style="font-size:24px;margin-bottom:8px">⚠️</div>
-          <b>Tabela vazia ou sem registos</b><br>
-          <small style="color:#aaa">Status: ${r.status}</small>
-        </div>`;
-      }
+    const { data, error } = await db.from('clientes').select('id,nome,tel,nif,denom').limit(500);
+    if(error) throw error;
+    if(data && data.length > 0) {
+      DB_CLIENTES = data;
+      renderClientes();
+      toast('✅ ' + data.length + ' clientes carregados');
     } else {
-      el.innerHTML = `<div style="padding:16px;background:#fff3f3;border-radius:12px;font-size:12px">
-        <b style="color:var(--r)">Erro ${r.status}</b><br>
-        <code style="font-size:10px;word-break:break-all">${txt.substring(0,300)}</code><br><br>
-        <b>Solução:</b> No Supabase → Settings → API → copia a <b>anon public key</b> (começa com eyJ...) e substitui no código.
-      </div>`;
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu)"><div style="font-size:24px;margin-bottom:8px">⚠️</div><b>Tabela vazia ou sem registos</b></div>';
     }
   } catch(e) {
+    console.error('❌ recarregarClientes:', e.message);
     el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--r)">❌ Erro de ligação:<br><small>${e.message}</small></div>`;
   }
 }
