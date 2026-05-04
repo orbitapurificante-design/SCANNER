@@ -205,6 +205,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
         <div style="font-size:12px;color:rgba(255,255,255,.9)" id="btnMigInfo">Clica para sincronizar dados offline com Supabase</div>
       </div>
 
+      <!-- ERRO SUPABASE - diagnóstico -->
+      <div id="erroDBMsg" style="display:none;background:#fff3cd;border:2px solid #ffc107;border-radius:14px;padding:14px 16px;margin-bottom:12px">
+        <div style="font-weight:800;font-size:13px;color:#856404;margin-bottom:6px">⚠️ Problema de ligação ao Supabase</div>
+        <div style="font-size:12px;color:#856404;line-height:1.5" id="erroDBTexto"></div>
+        <div style="margin-top:10px;font-size:11px;color:#856404">
+          <b>Como resolver:</b><br>
+          1. Vai a <b>supabase.com</b> → o teu projeto<br>
+          2. <b>Settings → API</b><br>
+          3. Copia a <b>"anon public"</b> key (começa com <code>eyJ...</code>)<br>
+          4. Substitui no código onde está <code>const SK =</code>
+        </div>
+      </div>
+
       <!-- Botão migração localStorage → Supabase (aparece só se houver dados locais) -->
       <div id="migracaoDiv" style="display:none;background:linear-gradient(135deg,#c9a84c,#e8c97a);border-radius:14px;padding:14px 16px;margin-bottom:12px">
         <div style="font-weight:800;font-size:14px;color:#0a1628;margin-bottom:4px">📦 Faturas locais encontradas!</div>
@@ -507,14 +520,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 <div id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════
-// SERVICE WORKER REGISTRATION
-// ═══════════════════════════════════════════
-if('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('scanner-sw.js')
-    .then(r => console.log('SW OK:', r.scope))
-    .catch(e => console.log('SW erro:', e));
-}
+// Service Worker removido — não disponível neste ambiente
 const PINS_CONFIG = {
   'admin':      '0000',   // Administrador — vê tudo
   'comercial1': '1111',   // Comercial 1
@@ -528,7 +534,8 @@ const NOMES_CONFIG = {
   'comercial3': 'Comercial 3',
 };
 const SB = 'https://opzmuzogxfzeqwjxmfvc.supabase.co';
-const SK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wem11em9neGZ6ZXF3anhtZnZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODMyNzUsImV4cCI6MjA4NzQ1OTI3NX0.nvf4dlF5IXehQ3g33jzw0K43r9LGrHBAdnCT5EvhWuM';
+// ⚠️ CHAVE SUPABASE: vai a https://supabase.com → projeto → Settings → API → "anon public" (começa com eyJ...)
+const SK = 'sb_publishable_e_Bd_rx2rfzBeIrbyGxCwA_SfXklv4s';
 const BUCKET = 'marinha';
 
 // Estado do utilizador atual
@@ -546,63 +553,72 @@ function hd() {
 
 async function api(endpoint, opts) {
   try {
-    const r = await fetch(SB + '/rest/v1/' + endpoint, Object.assign({ headers: hd() }, opts));
+    const url = SB + '/rest/v1/' + endpoint;
+    const r = await fetch(url, Object.assign({ headers: hd() }, opts));
+    const txt = await r.text();
     if(!r.ok) {
-      console.warn('API erro:', endpoint, r.status, await r.text());
+      console.error('❌ API erro:', r.status, endpoint, txt.substring(0,300));
+      // Mostrar diagnóstico na UI se for erro de autenticação
+      if(r.status === 401 || r.status === 403) {
+        mostrarErroDB('Chave Supabase inválida (erro ' + r.status + '). Vai a Supabase → Settings → API → anon public key (eyJ...) e substitui no código.');
+      }
       return null;
     }
-    return await r.json();
+    try { return JSON.parse(txt); } catch(e) { return null; }
   } catch(e) {
-    console.error('API falha:', endpoint, e.message);
+    console.error('❌ API falha de rede:', endpoint, e.message);
+    mostrarErroDB('Sem ligação ao Supabase: ' + e.message);
     return null;
   }
 }
 
-let audioCtx = null;
-function initAudio() {
-  if (audioCtx && audioCtx.state !== 'suspended') return;
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    
-    // Tocar um som silencioso para desbloquear o áudio no iOS/Chrome
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    gain.gain.value = 0.001; // Quase inaudível mas existente
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.1);
-    console.log("Áudio iniciado/retomado");
-  } catch (e) { console.warn("Erro ao iniciar áudio:", e); }
+function mostrarErroDB(msg) {
+  const wrap = document.getElementById('erroDBMsg');
+  const txt = document.getElementById('erroDBTexto');
+  if(wrap && txt) { txt.textContent = msg; wrap.style.display = 'block'; }
 }
 
-// Adicionar listener global para qualquer toque desbloquear o áudio
-document.addEventListener('touchstart', initAudio, { once: false });
-document.addEventListener('click', initAudio, { once: false });
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function initAudio() {
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+  } catch(e) {}
+}
+
+// Desbloquear áudio na primeira interação
+document.addEventListener('touchstart', initAudio, { once: true });
+document.addEventListener('click', initAudio, { once: true });
 
 function fazerBipe(tipo) {
-    try {
-        initAudio();
-        
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
 
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        // Som tipo "beep" de caixa de supermercado
-        osc.type = 'sine'; 
-        osc.frequency.setValueAtTime(tipo === 'add' ? 1000 : 500, audioCtx.currentTime);
-        
-        gain.gain.setValueAtTime(0.8, audioCtx.currentTime); 
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.2);
-    } catch (e) {
-        console.log("Erro ao apitar:", e);
-    }
+    osc.type = 'sine';
+    const freq = tipo === 'add' ? 1000 : 500;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(0.8, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.25);
+    console.log('🔊 Bipe:', tipo, freq + 'Hz');
+  } catch(e) {
+    console.warn('Erro bipe:', e);
+  }
 }
 // ═══════════════════════════════════════════
 // ESTADO
@@ -810,7 +826,6 @@ function uid() { return Date.now() + '_' + Math.random().toString(36).slice(2,7)
 // ═══════════════════════════════════════════
 let _pin = '';
 function pin(v) {
-  initAudio(); // Desbloquear áudio na primeira interação
   const comercial = document.getElementById('selComercial').value;
   if(!comercial) { document.getElementById('pErr').textContent = '⚠️ Seleciona o utilizador'; return; }
   if(v === 'C') { _pin = ''; }
@@ -866,6 +881,21 @@ async function init() {
   document.getElementById('fData').value = HOJE;
   document.getElementById('relDe').value = HOJE;
   document.getElementById('relAte').value = HOJE;
+
+  // ── TESTE DE LIGAÇÃO AO SUPABASE ──
+  console.log('🔌 A testar ligação ao Supabase...');
+  const testeR = await fetch(SB + '/rest/v1/faturas?select=id&limit=1', { headers: hd() });
+  console.log('Supabase status:', testeR.status);
+  if(!testeR.ok) {
+    const errTxt = await testeR.text();
+    console.error('Supabase erro:', errTxt);
+    mostrarErroDB(`Erro ${testeR.status} — A chave API pode estar errada. Vai a Supabase → Settings → API → copia a "anon public" key (eyJ...) e substitui no código onde está SK.`);
+  } else {
+    // Esconder erro se estava visível
+    const wrap = document.getElementById('erroDBMsg');
+    if(wrap) wrap.style.display = 'none';
+    console.log('✅ Supabase OK');
+  }
 
   // Carregar clientes do Supabase
   const cli = await api('clientes?select=*&order=nome.asc');
