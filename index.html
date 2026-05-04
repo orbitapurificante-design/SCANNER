@@ -224,14 +224,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           </div>
           <canvas id="qrCanvas" style="display:none"></canvas>
         </div>
-        <button onclick="toggleCam()" class="bP" id="btnCam" style="margin-bottom:8px">
-const dummyCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (dummyCtx.state === 'suspended') dummyCtx.resume();
-  // --------------------------
-
-  if(_camAtiva) { pararCam(); return; }          
-📷 ATIVAR CÂMARA
-        </button>
+        <button onclick="toggleCam()" class="bP" id="btnCam" style="margin-bottom:8px">📷 ATIVAR CÂMARA</button>
         <!-- Alternativa: tirar foto ou escolher da galeria -->
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:13px 8px;background:rgba(255,255,255,.12);border:1.5px dashed rgba(255,255,255,.3);border-radius:14px;color:rgba(255,255,255,.85);font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center">
@@ -351,10 +344,30 @@ const dummyCtx = new (window.AudioContext || window.webkitAudioContext)();
         <div id="listaFat"></div>
       </div>
 
-      <!-- Barra subtotais da selecção -->
+      <!-- Barra subtotais -->
+      <div class="card" style="background:linear-gradient(135deg,var(--n),var(--s));color:#fff;padding:12px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span id="subtotaisLabel" style="font-size:11px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.5px;text-transform:uppercase">Todos</span>
+          <button onclick="imprimirFaturas()" style="padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🖨</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;text-align:center">
+            <div style="font-size:13px;font-weight:800;color:#fff" id="subTotal">0€</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.5)">TOTAL</div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div style="font-size:13px;font-weight:800;color:#7dffb3" id="subPago">0€</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.5)">PAGO</div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div style="font-size:13px;font-weight:800;color:#ff8080" id="subPend">0€</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.5)">PENDENTE</div>
+          </div>
+        </div>
+      </div>
 
-  <!-- ══════════════════════════════════════ -->
-  <!-- 3. CLIENTES -->
+    </div>
+  </div>
   <!-- ══════════════════════════════════════ -->
   <div class="ecra" id="ecra2">
     <div class="s">
@@ -1028,7 +1041,7 @@ function lerQR() {
   const code = jsQR(imgData.data, imgData.width, imgData.height);
   
   if(code) {
-    emitirBipe(); // <--- ESTA É A LINHA NOVA
+    fazerBipe('add'); // bipe ao detetar QR
     processarQR(code.data);
     pararCam();
   }
@@ -1319,7 +1332,16 @@ function actualizarStats() {
 // ═══════════════════════════════════════════
 function renderClientes() {
   const q = (document.getElementById('searchCli')?.value || '').toLowerCase();
-  const lista = DB_CLIENTES.filter(c =>
+
+  // Colaborador: só clientes com dívidas em aberto (nas suas faturas)
+  let clientesBase = DB_CLIENTES;
+  if (!IS_ADMIN && COMERCIAL_ATUAL) {
+    const minhasFaturasPendentes = FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL && !f.pago);
+    const nomesComDebito = new Set(minhasFaturasPendentes.map(f => f.nome));
+    clientesBase = DB_CLIENTES.filter(c => nomesComDebito.has(c.denom || c.nome) || nomesComDebito.has(c.nome) || nomesComDebito.has(c.denom));
+  }
+
+  const lista = clientesBase.filter(c =>
     !q || c.nome.toLowerCase().includes(q) || (c.tel||'').includes(q) ||
     (c.denom && c.denom.toLowerCase().includes(q))
   );
@@ -1440,7 +1462,7 @@ function renderRelatorio() {
   // Filtrar por comercial (se não for admin, só as suas)
   let lista = (IS_ADMIN || !COMERCIAL_ATUAL)
     ? [...FATURAS]
-    : FATURAS.filter(f => !f.comercial || f.comercial === COMERCIAL_ATUAL);
+    : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
 
   lista = lista.filter(f => {
     // Filtrar por data de recebimento (criadoEm), não data da fatura
@@ -1532,7 +1554,7 @@ function imprimirRelatorio() {
   const ate = document.getElementById('relAte')?.value;
   if(!de||!ate) return;
 
-  let lista = IS_ADMIN ? [...FATURAS] : FATURAS.filter(f => !f.comercial || f.comercial === COMERCIAL_ATUAL);
+  let lista = IS_ADMIN ? [...FATURAS] : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
   lista = lista.filter(f => {
     const dataRec = f.criadoEm ? f.criadoEm.substring(0,10) : (f.data||'').substring(0,10);
     return dataRec >= de && dataRec <= ate;
