@@ -76,8 +76,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 .scan-frame-tr,.scan-frame-bl{position:absolute;width:40px;height:40px;border-color:var(--g);border-style:solid}
 .scan-frame-tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
 .scan-frame-bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
-@keyframes scan-line{0%,100%{top:10%}50%{top:85%}}
-.scan-line{position:absolute;left:8px;right:8px;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);animation:scan-line 2s ease-in-out infinite;border-radius:2px}
+	@keyframes scan-line{0%,100%{top:10%}50%{top:85%}}
+	.scan-line{position:absolute;left:8px;right:8px;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);animation:scan-line 2s ease-in-out infinite;border-radius:2px}
+	@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
 .qrStatus{text-align:center;color:rgba(255,255,255,.7);font-size:13px;min-height:20px;margin-top:6px}
 .qrStatus.ok{color:#7dffb3;font-weight:700}
 .qrStatus.err{color:#ff8080}
@@ -167,6 +168,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <div style="color:var(--g);font-size:11px;font-weight:700" id="cabData"></div>
+      <button id="btnSync" onclick="sincronizarOffline()" style="display:none;background:var(--gr);border:none;color:#fff;font-size:11px;font-weight:800;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 2px 8px rgba(39,174,96,0.4);animation:pulse 2s infinite">SYNC</button>
       <button onclick="logout()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif">SAIR</button>
     </div>
   </div>
@@ -552,15 +554,14 @@ function fazerBipe(tipo) {
         osc.connect(gain);
         gain.connect(ctx.destination);
 
-        // Som curto e agudo para adição, mais grave para remoção
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(tipo === 'add' ? 880 : 440, ctx.currentTime);
+        osc.type = 'square'; // Som mais 'clássico' de scanner e mais audível
+        osc.frequency.setValueAtTime(tipo === 'add' ? 1200 : 440, ctx.currentTime);
         
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
 
         osc.start();
-        osc.stop(ctx.currentTime + 0.1);
+        osc.stop(ctx.currentTime + 0.3);
     } catch (e) {
         console.log("Áudio não suportado ou bloqueado");
     }
@@ -582,8 +583,50 @@ async function guardar() {
   localStorage.setItem('scan_faturas_backup', JSON.stringify(FATURAS));
 }
 
+// Verificar se há faturas pendentes no localStorage
+function verificarPendentes() {
+  const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+  const btn = document.getElementById('btnSync');
+  if (backup.length > 0 && btn) {
+    btn.style.display = 'block';
+    btn.textContent = `SYNC (${backup.length})`;
+  } else if (btn) {
+    btn.style.display = 'none';
+  }
+}
+
+// Sincronizar faturas do localStorage para o Supabase
+async function sincronizarOffline() {
+  if (!navigator.onLine) return toast('⚠️ Sem internet para sincronizar');
+  
+  const pendentes = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+  if (pendentes.length === 0) return;
+
+  toast(`A sincronizar ${pendentes.length} faturas...`);
+  let sucessos = 0;
+  const novosPendentes = [];
+
+  for (const fat of pendentes) {
+    const ok = await guardarFaturaSupabase(fat, true); // true para não re-salvar no backup em caso de erro aqui
+    if (ok) sucessos++;
+    else novosPendentes.push(fat);
+  }
+
+  localStorage.setItem('scan_faturas_backup', JSON.stringify(novosPendentes));
+  verificarPendentes();
+  
+  if (sucessos > 0) {
+    toast(`✅ ${sucessos} faturas sincronizadas!`);
+    carregarFaturas().then(() => {
+      renderFaturas(); renderRelatorio(); actualizarStats();
+    });
+  } else {
+    toast('❌ Falha ao sincronizar. Tente mais tarde.');
+  }
+}
+
 // Guardar fatura individual no Supabase
-async function guardarFaturaSupabase(fat) {
+async function guardarFaturaSupabase(fat, isSync = false) {
   const d = {
     id: fat.id,
     nome: fat.nome,
@@ -604,8 +647,16 @@ async function guardarFaturaSupabase(fat) {
   if(!r.ok) {
     const err = await r.text();
     console.error('Erro guardar fatura:', err);
-    // Fallback: guardar local
-    localStorage.setItem('scan_faturas_backup', JSON.stringify(FATURAS));
+    // Fallback: guardar local (apenas se não for durante uma sincronização)
+    if (!isSync) {
+      const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
+      // Evitar duplicados no backup
+      if (!backup.find(f => f.id === fat.id)) {
+        backup.unshift(fat);
+        localStorage.setItem('scan_faturas_backup', JSON.stringify(backup));
+      }
+      verificarPendentes();
+    }
     return false;
   }
   return true;
@@ -662,6 +713,7 @@ async function carregarFaturas() {
       criadoEm: f.criado_em
     }));
     console.log('Faturas carregadas:', FATURAS.length);
+    verificarPendentes();
     return true;
   } else {
     // Fallback para localStorage
@@ -692,6 +744,7 @@ function pin(v) {
       document.getElementById('ePin').style.display = 'none';
       document.getElementById('eApp').classList.add('v');
       document.getElementById('cabComercial').textContent = NOMES_CONFIG[comercial] || comercial;
+      verificarPendentes();
       // Pré-selecionar colaborador no formulário
       const fCol = document.getElementById('fColaborador');
       if(fCol) fCol.value = comercial;
@@ -915,6 +968,7 @@ function lerQR() {
 
 function processarQR(texto) {
   pararCam();
+  fazerBipe('add'); // Bipe ao ler com sucesso
   const status = document.getElementById('qrStatus');
   status.style.display = 'block';
   status.textContent = '✅ QR Code lido!';
