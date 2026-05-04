@@ -547,24 +547,30 @@ async function api(endpoint, opts) {
 
 let audioCtx = null;
 function initAudio() {
-  if (audioCtx) return;
+  if (audioCtx && audioCtx.state !== 'suspended') return;
   try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
     // Tocar um som silencioso para desbloquear o áudio no iOS/Chrome
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    gain.gain.value = 0;
+    gain.gain.value = 0.001; // Quase inaudível mas existente
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start();
-    osc.stop(audioCtx.currentTime + 0.01);
+    osc.stop(audioCtx.currentTime + 0.1);
+    console.log("Áudio iniciado/retomado");
   } catch (e) { console.warn("Erro ao iniciar áudio:", e); }
 }
 
+// Adicionar listener global para qualquer toque desbloquear o áudio
+document.addEventListener('touchstart', initAudio, { once: false });
+document.addEventListener('click', initAudio, { once: false });
+
 function fazerBipe(tipo) {
     try {
-        if (!audioCtx) initAudio();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        initAudio();
         
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -572,16 +578,17 @@ function fazerBipe(tipo) {
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
-        osc.type = 'square'; 
-        osc.frequency.setValueAtTime(tipo === 'add' ? 1200 : 440, audioCtx.currentTime);
+        // Som tipo "beep" de caixa de supermercado
+        osc.type = 'sine'; 
+        osc.frequency.setValueAtTime(tipo === 'add' ? 1000 : 500, audioCtx.currentTime);
         
-        gain.gain.setValueAtTime(0.5, audioCtx.currentTime); // Volume aumentado
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.8, audioCtx.currentTime); 
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
 
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
+        osc.stop(audioCtx.currentTime + 0.2);
     } catch (e) {
-        console.log("Áudio não suportado ou bloqueado", e);
+        console.log("Erro ao apitar:", e);
     }
 }
 // ═══════════════════════════════════════════
@@ -603,17 +610,39 @@ async function guardar() {
 
 // Verificar se há faturas pendentes no localStorage
 function verificarPendentes() {
-  // Verificar tanto o backup novo quanto o formato antigo se existir
   const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
   const antigo = JSON.parse(localStorage.getItem('scan_faturas') || '[]');
-  const total = backup.length + antigo.length;
   
+  // Filtrar duplicados entre as duas listas por ID ou número
+  const unicos = [];
+  const ids = new Set();
+  [...antigo, ...backup].forEach(f => {
+    const key = f.id || (f.num + f.tipo);
+    if (!ids.has(key)) {
+      ids.add(key);
+      unicos.push(f);
+    }
+  });
+
+  const total = unicos.length;
   const btn = document.getElementById('btnSync');
+  
   if (total > 0 && btn) {
     btn.style.display = 'block';
+    btn.style.background = 'var(--gr)';
     btn.textContent = `SYNC (${total})`;
+    
+    // Também atualizar o migracaoDiv se ele existir
+    const migDiv = document.getElementById('migracaoDiv');
+    const migInfo = document.getElementById('migracaoInfo');
+    if (migDiv) {
+      migDiv.style.display = 'block';
+      if (migInfo) migInfo.textContent = `Tens ${total} fatura(s) no teu telemóvel para sincronizar.`;
+    }
   } else if (btn) {
     btn.style.display = 'none';
+    const migDiv = document.getElementById('migracaoDiv');
+    if (migDiv) migDiv.style.display = 'none';
   }
 }
 
@@ -623,31 +652,43 @@ async function sincronizarOffline() {
   
   const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
   const antigo = JSON.parse(localStorage.getItem('scan_faturas') || '[]');
-  const pendentes = [...antigo, ...backup];
   
-  if (pendentes.length === 0) return;
+  // Unificar e remover duplicados antes de enviar
+  const pendentes = [];
+  const ids = new Set();
+  [...antigo, ...backup].forEach(f => {
+    const key = f.id || (f.num + f.tipo);
+    if (!ids.has(key)) {
+      ids.add(key);
+      pendentes.push(f);
+    }
+  });
+  
+  if (pendentes.length === 0) return toast('Nada para sincronizar');
 
   toast(`A sincronizar ${pendentes.length} faturas...`);
   let sucessos = 0;
   const novosPendentes = [];
 
   for (const fat of pendentes) {
-    const ok = await guardarFaturaSupabase(fat, true); // true para não re-salvar no backup em caso de erro aqui
+    // Verificar se já existe no Supabase antes de tentar guardar (opcional, mas seguro)
+    const ok = await guardarFaturaSupabase(fat, true); 
     if (ok) sucessos++;
     else novosPendentes.push(fat);
+    // Pequena pausa para não sobrecarregar a API
+    await new Promise(r => setTimeout(r, 100));
   }
 
   localStorage.setItem('scan_faturas_backup', JSON.stringify(novosPendentes));
-  localStorage.removeItem('scan_faturas'); // Limpar o antigo após tentativa de sync
+  localStorage.removeItem('scan_faturas'); 
   verificarPendentes();
   
   if (sucessos > 0) {
-    toast(`✅ ${sucessos} faturas sincronizadas!`);
-    carregarFaturas().then(() => {
-      renderFaturas(); renderRelatorio(); actualizarStats();
-    });
+    toast(`✅ ${sucessos} faturas enviadas!`);
+    await carregarFaturas();
+    renderFaturas(); renderRelatorio(); actualizarStats();
   } else {
-    toast('❌ Falha ao sincronizar. Tente mais tarde.');
+    toast('❌ Erro na ligação. Tenta novamente.');
   }
 }
 
