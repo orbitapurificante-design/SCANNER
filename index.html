@@ -268,8 +268,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
       <div class="card">
         <div class="ct">Dados do Documento</div>
 
-        <label class="lbl">Colaborador</label>
-        <select class="sel" id="fColaborador" style="margin-bottom:10px">
+        <label class="lbl">Colaborador <span id="colabAviso" style="display:none;color:#e74c3c;font-size:10px;font-weight:800">← OBRIGATÓRIO SELECIONAR</span></label>
+        <select class="sel" id="fColaborador" style="margin-bottom:10px" onchange="document.getElementById('colabAviso').style.display=this.value?'none':'inline'">
           <option value="">-- Selecionar --</option>
           <option value="admin">🔑 Administrador</option>
           <option value="comercial1">👤 Comercial 1</option>
@@ -929,9 +929,12 @@ function pin(v) {
       verificarPendentes();
       // Pré-selecionar colaborador no formulário
       const fCol = document.getElementById('fColaborador');
-      if(fCol) fCol.value = comercial;
-      // Admin pode trocar colaborador, outros não
-      if(fCol) fCol.disabled = !IS_ADMIN;
+      if(fCol) {
+        // Admin: começa sem nada selecionado para forçar escolha consciente
+        // Comercial: pré-seleciona a si próprio (e não pode mudar)
+        fCol.value = IS_ADMIN ? '' : comercial;
+        fCol.disabled = !IS_ADMIN;
+      }
       init();
     } else {
       document.getElementById('pErr').textContent = '❌ PIN incorreto';
@@ -1270,7 +1273,15 @@ function limparForm() {
   document.getElementById('chkPago').classList.remove('on');
   document.getElementById('nifMatch').style.display = 'none';
   const fCol = document.getElementById('fColaborador');
-  if(fCol && COMERCIAL_ATUAL) { fCol.value = COMERCIAL_ATUAL; fCol.disabled = !IS_ADMIN; }
+  if(fCol) {
+    // Admin: deixar vazio para forcar selecao consciente
+    // Comercial: pre-selecionar o seu proprio utilizador
+    fCol.value = IS_ADMIN ? '' : (COMERCIAL_ATUAL || '');
+    fCol.disabled = !IS_ADMIN;
+  }
+  // Mostrar aviso se admin e sem colaborador selecionado
+  const aviso = document.getElementById('colabAviso');
+  if(aviso) aviso.style.display = (IS_ADMIN && !fCol?.value) ? 'inline' : 'none';
   const st = document.getElementById('qrStatus');
   st.style.display = 'none'; st.className = 'qrStatus';
   const diag = document.getElementById('qrDiag');
@@ -1288,6 +1299,16 @@ async function gravarFatura() {
   if(!num)  return toast('⚠️ Insira o nº de documento');
   if(!valor) return toast('⚠️ Insira o valor');
 
+  // Determinar comercial: admin pode selecionar, outros usam o seu próprio
+  const fColEl = document.getElementById('fColaborador');
+  const comercialSelecionado = fColEl ? fColEl.value.trim() : '';
+  const comercialFinal = IS_ADMIN ? comercialSelecionado : COMERCIAL_ATUAL;
+
+  // Admin DEVE sempre selecionar um colaborador
+  if(IS_ADMIN && !comercialFinal) {
+    return toast('⚠️ Admin: seleciona o colaborador antes de gravar!');
+  }
+
   if(FATURAS.find(f => f.num === num && f.tipo === tipo)) {
     if(!confirm(`Já existe um documento ${tipo} ${num}. Continuar?`)) return;
   }
@@ -1301,9 +1322,10 @@ async function gravarFatura() {
     data: data || HOJE,
     valor,
     pago: _pagoFormState,
-    comercial: document.getElementById('fColaborador')?.value || COMERCIAL_ATUAL,
+    comercial: comercialFinal,
     criadoEm: new Date().toISOString()
   };
+  console.log('📝 A gravar fatura para comercial:', comercialFinal, '| IS_ADMIN:', IS_ADMIN);
 
   toast('A guardar...');
   const ok = await guardarFaturaSupabase(fat);
