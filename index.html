@@ -1735,7 +1735,49 @@ function abrirJanelaImpressao(conteudo) {
     small{color:#888;display:block;margin-top:1px}
     @page{margin:1cm}
     @media print{body{padding:0}}
-  </style></head><body>${conteudo}</body></html>`);
+  </style></head><body>${conteudo}
+  <script>
+    // ── Service Worker: atualização automática ──
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+          console.log('[SW] Registado:', reg.scope);
+
+          // Verificar atualizações imediatamente e a cada 60 segundos
+          reg.update();
+          setInterval(() => reg.update(), 60000);
+
+          // Quando há nova versão disponível, aplicar automaticamente
+          reg.addEventListener('updatefound', () => {
+            const novo = reg.installing;
+            if (!novo) return;
+            novo.addEventListener('statechange', () => {
+              if (novo.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[SW] Nova versão disponível — a atualizar...');
+                // Avisar o SW para ativar já
+                novo.postMessage('SKIP_WAITING');
+              }
+            });
+          });
+
+          // Quando o SW muda (nova versão ativada), recarregar a página
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            console.log('[SW] Novo SW ativo — a recarregar página');
+            window.location.reload();
+          });
+
+        } catch(e) {
+          console.warn('[SW] Erro ao registar:', e);
+        }
+      });
+    }
+  </script>
+
+</body></html>`);
   w.document.close();
   setTimeout(()=>w.print(), 400);
 }
@@ -1852,5 +1894,47 @@ document.addEventListener('click', e => {
   }
 });
 </script>
+
+  <script>
+    // ── Service Worker: atualização automática ──
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+          console.log('[SW] Registado:', reg.scope);
+
+          // Verificar atualizações imediatamente e a cada 60 segundos
+          reg.update();
+          setInterval(() => reg.update(), 60000);
+
+          // Quando há nova versão disponível, aplicar automaticamente
+          reg.addEventListener('updatefound', () => {
+            const novo = reg.installing;
+            if (!novo) return;
+            novo.addEventListener('statechange', () => {
+              if (novo.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[SW] Nova versão disponível — a atualizar...');
+                // Avisar o SW para ativar já
+                novo.postMessage('SKIP_WAITING');
+              }
+            });
+          });
+
+          // Quando o SW muda (nova versão ativada), recarregar a página
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            console.log('[SW] Novo SW ativo — a recarregar página');
+            window.location.reload();
+          });
+
+        } catch(e) {
+          console.warn('[SW] Erro ao registar:', e);
+        }
+      });
+    }
+  </script>
+
 </body>
 </html>
