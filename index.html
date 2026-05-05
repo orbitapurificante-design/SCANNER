@@ -214,9 +214,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           <b>Como resolver:</b><br>
           1. Vai a <b>supabase.com</b> → o teu projeto<br>
           2. <b>Settings → API</b><br>
-          3. Copia a <b>"anon public"</b> key (começa com <code>eyJ...</code>)<br>
-          4. Substitui no código onde está <code>const SK =</code>
+          3. Copia a <b>"anon public" key</b> (começa com <code>eyJ...</code>)<br>
+          4. No ficheiro <code>index.html</code>, substitui o valor de <code>const SB_KEY =</code><br>
+          5. Verifica também se a tabela <b>faturas</b> tem RLS activo com política INSERT para <b>anon</b>
         </div>
+        <button onclick="testarLigacao()" style="margin-top:10px;width:100%;padding:9px;background:#856404;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">🔌 Testar ligação agora</button>
       </div>
 
       <!-- Botão migração localStorage → Supabase (aparece só se houver dados locais) -->
@@ -648,23 +650,32 @@ document.addEventListener('touchstart', initAudio, { once: true });
 document.addEventListener('click', initAudio, { once: true });
 
 function fazerBipe(tipo) {
+  // Vibração como fallback (funciona em mobile mesmo sem áudio)
+  try { if(navigator.vibrate) navigator.vibrate(tipo === 'add' ? [80] : [40, 30, 40]); } catch(e){}
+
   try {
     const ctx = getAudioCtx();
-    if (ctx.state === 'suspended') ctx.resume();
-    
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.type = 'sine';
-    const freq = tipo === 'add' ? 1000 : 500;
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-    gain.gain.setValueAtTime(0.8, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.25);
-    console.log('🔊 Bipe:', tipo, freq + 'Hz');
+    // Garantir que o contexto está ativo antes de tocar
+    const play = () => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      const freq = tipo === 'add' ? 1000 : 500;
+      const now = ctx.currentTime;
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.8, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+      osc.start(now);
+      osc.stop(now + 0.3);
+      console.log('🔊 Bipe:', tipo, freq + 'Hz');
+    };
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(play).catch(e => console.warn('Erro bipe resume:', e));
+    } else {
+      play();
+    }
   } catch(e) {
     console.warn('Erro bipe:', e);
   }
@@ -772,6 +783,12 @@ async function sincronizarOffline() {
 
 // Guardar fatura individual no Supabase
 async function guardarFaturaSupabase(fat, isSync = false) {
+  // Garantir que o comercial esta sempre preenchido
+  const comercialFinal = fat.comercial || COMERCIAL_ATUAL || null;
+  if (!comercialFinal && !isSync) {
+    toast('\u26a0\ufe0f Seleciona o colaborador antes de gravar');
+    return false;
+  }
   const d = {
     id: fat.id,
     nome: fat.nome,
@@ -781,16 +798,27 @@ async function guardarFaturaSupabase(fat, isSync = false) {
     data: fat.data || null,
     valor: parseFloat(fat.valor) || 0,
     pago: fat.pago || false,
-    comercial: fat.comercial || null,
+    comercial: comercialFinal,
     criado_em: fat.criadoEm || new Date().toISOString()
   };
   try {
     const { error } = await db.from('faturas').insert(d);
-    if(error) throw error;
-    console.log('✅ Fatura guardada no Supabase:', d.id);
+    if(error) {
+      // Erros comuns com mensagens uteis
+      if(error.message && (error.message.includes('JWT') || error.message.includes('Invalid API key') || error.code === 'PGRST301')) {
+        mostrarErroDB('\u274c Chave Supabase invalida. Vai a Settings \u2192 API no teu projeto Supabase e copia a nova "anon public" key.');
+      } else if(error.code === '42501' || (error.message && error.message.includes('row-level'))) {
+        mostrarErroDB('\u274c RLS a bloquear insert. No Supabase vai a Table Editor \u2192 faturas \u2192 RLS e adiciona politica INSERT para role "anon".');
+      } else {
+        mostrarErroDB('Erro ao guardar: ' + (error.message||'desconhecido') + ' (cod: ' + (error.code||'?') + ')');
+      }
+      throw error;
+    }
+    console.log('\u2705 Fatura guardada no Supabase:', d.id, 'comercial:', comercialFinal);
+    esconderErroDB();
     return true;
   } catch(e) {
-    console.error('❌ Erro guardar fatura:', e.message);
+    console.error('\u274c Erro guardar fatura:', e.message);
     if(!isSync) {
       const backup = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
       if(!backup.find(f => f.id === fat.id)) {
@@ -855,6 +883,29 @@ async function carregarFaturas() {
 }
 
 function uid() { return Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+
+// Teste de ligacao manual (botao no erro)
+async function testarLigacao() {
+  toast('A testar ligacao...');
+  try {
+    const { data, error } = await db.from('faturas').select('id').limit(1);
+    if(error) throw error;
+    esconderErroDB();
+    toast('\u2705 Ligacao OK! A recarregar...');
+    await carregarFaturas();
+    renderFaturas(); renderRelatorio(); actualizarStats();
+  } catch(e) {
+    const msg = e.message || '';
+    if(msg.includes('JWT') || msg.includes('Invalid API') || e.code === 'PGRST301') {
+      mostrarErroDB('\u274c Chave API invalida. Vai a Settings \u2192 API no Supabase e copia a nova "anon public" key. Substitui o valor de SB_KEY no index.html.');
+    } else if(e.code === '42501' || msg.includes('row-level') || msg.includes('permission denied')) {
+      mostrarErroDB('\u274c Permissao negada (RLS). Na tabela "faturas" do Supabase, vai a Authentication \u2192 Policies e cria politica SELECT+INSERT para role "anon".');
+    } else {
+      mostrarErroDB('Erro: ' + msg + ' | Cod: ' + (e.code||'?'));
+    }
+    toast('\u274c Erro de ligacao. Ver aviso.');
+  }
+}
 
 // ═══════════════════════════════════════════
 // PIN
