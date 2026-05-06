@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<!-- Bloquear pull-to-refresh e gestos de navegação -->
+<style>
+  html, body {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: auto;
+  }
+</style>
 <meta name="theme-color" content="#0a1628">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,7 +25,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--n:#0a1628;--s:#1a4a8a;--g:#c9a84c;--gl:#e8c97a;--bg:#f4f1ec;--mu:#7a8a9a;--gr:#27ae60;--r:#e74c3c;--cr:#f5f0e8}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-height:100vh}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-height:100vh;overscroll-behavior:none}
 
 /* ── PIN ── */
 #ePin{position:fixed;inset:0;z-index:1000;background:linear-gradient(160deg,var(--n),var(--s));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px}
@@ -1878,5 +1886,42 @@ document.addEventListener('click', e => {
       });
     }
   </script>
+
+  <!-- ══ PROTECÇÃO PULL-TO-REFRESH & BOTÃO RETROCEDER ══ -->
+  <script>
+    // ── 1. Bloquear pull-to-refresh no Android Chrome ──
+    let _startY = 0;
+    document.addEventListener('touchstart', e => {
+      _startY = e.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+      const dy = e.touches[0].clientY - _startY;
+      if (scrollTop === 0 && dy > 0) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // ── 2. Botão Retroceder do Android → navegar dentro da app ──
+    history.pushState({ appPage: true }, '', '');
+
+    window.addEventListener('popstate', () => {
+      // Re-empurra estado para não sair da app
+      history.pushState({ appPage: true }, '', '');
+
+      // Se há um modal aberto, fecha-o primeiro
+      const modalAberto = document.querySelector('.modal.a');
+      if (modalAberto) {
+        modalAberto.classList.remove('a');
+        return;
+      }
+      // Se não estamos no ecrã Scanner (ecra0), volta para ele
+      const ecraNativo = document.querySelector('.ecra.a');
+      if (ecraNativo && ecraNativo.id !== 'ecra0') {
+        if (typeof ir === 'function') ir(0);
+      }
+    });
+  </script>
+
 </body>
 </html>
