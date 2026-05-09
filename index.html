@@ -278,7 +278,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
         <label class="lbl">Colaborador</label>
         <select class="sel" id="fColaborador" style="margin-bottom:10px">
           <option value="">-- Selecionar --</option>
-          <option value="admin">🔑 Administrador</option>
+          <option value="admin" selected>🔑 Administrador</option>
           <option value="comercial1">👤 Comercial 1</option>
           <option value="comercial2">👤 Comercial 2</option>
           <option value="comercial3">👤 Comercial 3</option>
@@ -931,7 +931,7 @@ function pin(v) {
       verificarPendentes();
       const fCol = document.getElementById('fColaborador');
       if(fCol) {
-        fCol.value = IS_ADMIN ? '' : comercial;
+        fCol.value = IS_ADMIN ? 'admin' : comercial;
         fCol.disabled = !IS_ADMIN;
       }
       init();
