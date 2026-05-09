@@ -108,6 +108,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 .checkBox{width:26px;height:26px;border-radius:8px;border:2px solid #ddd;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:.15s}
 .checkBox.on{background:var(--gr);border-color:var(--gr)}
 
+/* Notas / Faltas */
+.notaItem{background:#fffbf0;border:1.5px solid rgba(201,168,76,.3);border-radius:12px;padding:12px;margin-bottom:10px}
+.notaItem.resolvida{background:#f0fff5;border-color:rgba(39,174,96,.3)}
+.notaTexto{font-size:13px;color:var(--n);line-height:1.5}
+.notaResolucao{font-size:12px;color:var(--gr);font-weight:600;margin-top:6px;padding-top:6px;border-top:1px solid rgba(39,174,96,.2);white-space:pre-wrap}
+.notaVistoBx{width:22px;height:22px;border-radius:6px;border:2px solid #ccc;background:#fff;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;cursor:pointer;font-size:12px;font-weight:900;color:transparent}
+.notaVistoBx.on{background:var(--gr);border-color:var(--gr);color:#fff}
+.btnDelNota{background:none;border:none;color:var(--r);font-size:18px;cursor:pointer;padding:0;line-height:1}
 /* Relatório */
 .relRow{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:13px}
 .relRow:last-child{border-bottom:none}
@@ -139,7 +147,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
     <div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;text-align:center">Comercial / Utilizador</div>
     <select id="selComercial" style="width:100%;padding:14px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);border-radius:14px;color:#fff;font-size:15px;font-weight:700;font-family:'DM Sans',sans-serif;-webkit-appearance:none;text-align:center;cursor:pointer;outline:none">
       <option value="" style="background:#0a1628">-- Selecionar --</option>
-      <option value="admin" style="background:#0a1628">🔑 Administrador</option>
+      <option value="admin" selected style="background:#0a1628">🔑 Administrador</option>
       <option value="comercial1" style="background:#0a1628">👤 Comercial 1</option>
       <option value="comercial2" style="background:#0a1628">👤 Comercial 2</option>
       <option value="comercial3" style="background:#0a1628">👤 Comercial 3</option>
@@ -490,6 +498,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
         <option value="comercial3">👤 Comercial 3</option>
       </select>
     </div>
+    <!-- ── NOTAS / FALTAS ── -->
+    <div style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="ct" style="margin-bottom:0">⚠️ Notas / Faltas na Fatura</div>
+        <button onclick="adicionarNota()" style="background:linear-gradient(135deg,var(--g),var(--gl));border:none;color:var(--n);font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif">+ Adicionar</button>
+      </div>
+      <div id="eFatNotas"></div>
+      <!-- Caixa para nova nota -->
+      <div id="addNotaBox" style="display:none;background:#eef2f7;border-radius:12px;padding:12px;margin-bottom:10px">
+        <label class="lbl">Descrição da nota / falta</label>
+        <textarea id="novaNotaTexto" placeholder="Descreve a nota ou falta encontrada..." style="width:100%;padding:10px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:10px;font-size:13px;color:var(--n);outline:none;font-family:'DM Sans',sans-serif;resize:vertical;min-height:70px;margin-bottom:8px"></textarea>
+        <div style="display:flex;gap:8px">
+          <button onclick="cancelarNota()" style="flex:1;padding:10px;background:#fff;border:1.5px solid #ddd;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--mu)">Cancelar</button>
+          <button onclick="confirmarNota()" style="flex:2;padding:10px;background:var(--n);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">✓ Guardar Nota</button>
+        </div>
+      </div>
+    </div>
+
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="bD" onclick="eliminarFaturaEdit()" style="flex:1;margin-bottom:0">🗑 Eliminar</button>
       <button class="bP" onclick="guardarFaturaEdit()" style="flex:2">💾 Guardar</button>
@@ -794,7 +820,8 @@ async function guardarFaturaSupabase(fat, isSync = false) {
     valor: parseFloat(fat.valor) || 0,
     pago: fat.pago || false,
     comercial: fat.comercial || null,
-    criado_em: fat.criadoEm || new Date().toISOString()
+    criado_em: fat.criadoEm || new Date().toISOString(),
+    notas: fat.notas || []
   };
   try {
     const { error } = await db.from('faturas').insert(d);
@@ -833,7 +860,8 @@ async function actualizarFaturaSupabase(fat) {
       nome: fat.nome, nif: fat.nif || null, tipo: fat.tipo,
       num: fat.num, data: fat.data || null,
       valor: parseFloat(fat.valor) || 0,
-      pago: fat.pago || false, comercial: fat.comercial || null
+      pago: fat.pago || false, comercial: fat.comercial || null,
+      notas: fat.notas || []
     }).eq('id', fat.id);
     if(error) throw error;
     return true;
@@ -864,7 +892,8 @@ async function carregarFaturas() {
     FATURAS = (data || []).map(f => ({
       id: f.id, nome: f.nome, nif: f.nif, tipo: f.tipo,
       num: f.num, data: f.data, valor: parseFloat(f.valor) || 0,
-      pago: f.pago || false, comercial: f.comercial, criadoEm: f.criado_em
+      pago: f.pago || false, comercial: f.comercial, criadoEm: f.criado_em,
+      notas: f.notas || []
     }));
     console.log('✅ Faturas carregadas:', FATURAS.length);
     esconderErroDB();
@@ -1412,7 +1441,7 @@ function renderFaturas() {
       <div class="fatBadge ${cor}">${f.tipo}</div>
       <div class="fatInfo">
         <div class="fatNome">${esc(f.nome)}</div>
-        <div class="fatSub">${esc(f.num)} · ${dataFmt}${f.nif ? ' · NIF: '+f.nif : ''}</div>
+        <div class="fatSub">${esc(f.num)} · ${dataFmt}${f.nif ? ' · NIF: '+f.nif : ''}${(f.notas&&f.notas.length>0)?` · <span style="color:${f.notas.some(n=>!n.resolvida)?'#c9a84c':'var(--gr)'}">⚠️ ${f.notas.length} nota(s)</span>`:''}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <div class="fatVal" style="color:${f.pago?'var(--gr)':'var(--r)'}">${parseFloat(f.valor).toFixed(2)}€</div>
@@ -1905,7 +1934,6 @@ function editarFatura(id) {
   document.getElementById('eFatValor').value = parseFloat(f.valor)||0;
   const chk = document.getElementById('eFatPago');
   if(f.pago) chk.classList.add('on'); else chk.classList.remove('on');
-  // Mostrar colaborador só para admin
   const colabWrap = document.getElementById('eFatColabWrap');
   if(IS_ADMIN) {
     colabWrap.style.display = 'block';
@@ -1913,7 +1941,65 @@ function editarFatura(id) {
   } else {
     colabWrap.style.display = 'none';
   }
+  // Carregar notas
+  _notasEdit = JSON.parse(JSON.stringify(f.notas || []));
+  document.getElementById('addNotaBox').style.display = 'none';
+  renderNotasEdit();
   document.getElementById('mEditFat').classList.add('a');
+}
+
+// ── NOTAS / FALTAS ──────────────────────────
+let _notasEdit = [];
+
+function renderNotasEdit() {
+  const cont = document.getElementById('eFatNotas');
+  if(!cont) return;
+  if(_notasEdit.length === 0) {
+    cont.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:10px 0">Sem notas registadas</div>';
+    return;
+  }
+  cont.innerHTML = _notasEdit.map((n, i) => `
+    <div class="notaItem ${n.resolvida ? 'resolvida' : ''}">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <span style="font-size:10px;font-weight:700;color:${n.resolvida ? 'var(--gr)' : '#c9a84c'};text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">${n.resolvida ? '✅ Resolvida' : '⚠️ Por resolver'}</span>
+          <div style="font-size:13px;color:var(--n);line-height:1.5">${esc(n.texto)}</div>
+        </div>
+        <button class="btnDelNota" onclick="_notasEdit.splice(${i},1);renderNotasEdit()" title="Eliminar">×</button>
+      </div>
+      ${n.resolvida && n.resolucao ? `<div class="notaResolucao">💬 ${esc(n.resolucao)}</div>` : ''}
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <div style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1" onclick="toggleResolvida(${i})">
+          <div class="notaVistoBx ${n.resolvida ? 'on' : ''}">✓</div>
+          <span style="font-size:12px;font-weight:700;color:${n.resolvida ? 'var(--gr)' : 'var(--mu)'}">${n.resolvida ? 'Marcada como resolvida' : 'Dar visto (marcar como resolvida)'}</span>
+        </div>
+      </div>
+      ${n.resolvida ? `<div style="margin-top:8px"><textarea placeholder="Como foi resolvido? (opcional)" style="width:100%;padding:8px 10px;background:rgba(39,174,96,.07);border:1.5px solid rgba(39,174,96,.2);border-radius:8px;font-size:12px;color:var(--n);outline:none;font-family:'DM Sans',sans-serif;resize:vertical;min-height:55px" oninput="_notasEdit[${i}].resolucao=this.value">${esc(n.resolucao||'')}</textarea></div>` : ''}
+    </div>`).join('');
+}
+
+function adicionarNota() {
+  document.getElementById('addNotaBox').style.display = 'block';
+  document.getElementById('novaNotaTexto').value = '';
+  setTimeout(() => document.getElementById('novaNotaTexto').focus(), 100);
+}
+
+function cancelarNota() {
+  document.getElementById('addNotaBox').style.display = 'none';
+}
+
+function confirmarNota() {
+  const txt = document.getElementById('novaNotaTexto').value.trim();
+  if(!txt) { toast('⚠️ Escreve a nota primeiro'); return; }
+  _notasEdit.push({ texto: txt, resolvida: false, resolucao: '', criadaEm: new Date().toISOString() });
+  document.getElementById('addNotaBox').style.display = 'none';
+  renderNotasEdit();
+}
+
+function toggleResolvida(i) {
+  _notasEdit[i].resolvida = !_notasEdit[i].resolvida;
+  if(!_notasEdit[i].resolvida) _notasEdit[i].resolucao = '';
+  renderNotasEdit();
 }
 
 async function guardarFaturaEdit() {
@@ -1930,6 +2016,7 @@ async function guardarFaturaEdit() {
   if(IS_ADMIN) {
     FATURAS[idx].comercial = document.getElementById('eFatColab').value || null;
   }
+  FATURAS[idx].notas = _notasEdit;
   await actualizarFaturaSupabase(FATURAS[idx]);
   fecharModal('mEditFat');
   renderFaturas(); renderRelatorio(); actualizarStats();
