@@ -1490,8 +1490,11 @@ function renderFaturas() {
     const cor = {FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo] || 'nd';
     const dataFmt = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '';
     const isNC = f.tipo === 'NC';
-    // Localizar cliente para botão IR
-    const cli = DB_CLIENTES.find(c => c.nome === f.nome || c.denom === f.nome);
+    // Localizar cliente — match por nome direto OU por denom
+    const cli = DB_CLIENTES.find(c =>
+      c.nome === f.nome || c.denom === f.nome ||
+      (c.denom && c.denom === f.nome) || (c.nome === f.nome)
+    );
     const temLoc = cli && (cli.lat || cli.rua || cli.localidade);
     const moradaCli = cli ? [cli.rua, cli.localidade].filter(Boolean).join(', ') : '';
     const btnIr = (!f.pago && !isNC && temLoc) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${moradaCli.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
@@ -1540,17 +1543,12 @@ function actualizarStats() {
 function renderClientes() {
   const q = (document.getElementById('searchCli')?.value || '').toLowerCase();
 
-  // Colaborador: só clientes com dívidas em aberto (nas suas faturas)
-  let clientesBase = DB_CLIENTES;
-  if (!IS_ADMIN && COMERCIAL_ATUAL) {
-    const minhasFaturasPendentes = FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL && !f.pago);
-    const nomesComDebito = new Set(minhasFaturasPendentes.map(f => f.nome));
-    clientesBase = DB_CLIENTES.filter(c => nomesComDebito.has(c.denom || c.nome) || nomesComDebito.has(c.nome) || nomesComDebito.has(c.denom));
-  }
-
-  const lista = clientesBase.filter(c =>
+  // Todos os comerciais vêem TODOS os clientes
+  // (o filtro por comercial era demasiado restritivo — escondia clientes novos sem faturas)
+  const lista = DB_CLIENTES.filter(c =>
     !q || c.nome.toLowerCase().includes(q) || (c.tel||'').includes(q) ||
-    (c.denom && c.denom.toLowerCase().includes(q))
+    (c.denom && c.denom.toLowerCase().includes(q)) ||
+    (c.localidade && c.localidade.toLowerCase().includes(q))
   );
 
   const el = document.getElementById('listaCli');
@@ -1570,25 +1568,39 @@ function renderClientes() {
 
   el.innerHTML = lista.map(c => {
     const nomeMostrar = c.denom || c.nome;
-    // Calcular pendente: faturas que correspondam ao nome ou denom do cliente
+
+    // Faturas deste cliente (pelo nome ou denom)
     const fatsCli = FATURAS.filter(f =>
       f.nome === nomeMostrar || f.nome === c.nome || (c.denom && f.nome === c.denom)
     );
+
+    // Para comercial: só conta o pendente das SUAS faturas
+    const fatsParaPendente = (!IS_ADMIN && COMERCIAL_ATUAL)
+      ? fatsCli.filter(f => f.comercial === COMERCIAL_ATUAL)
+      : fatsCli;
+
     // NC desconta
-    const total = fatsCli.reduce((a,f) => a + (f.tipo === 'NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
-    const pagas = fatsCli.filter(f => f.pago).reduce((a,f) => a + (f.tipo === 'NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+    const total = fatsParaPendente.reduce((a,f) => a + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+    const pagas = fatsParaPendente.filter(f => f.pago).reduce((a,f) => a + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
     const pend  = total - pagas;
+
     const morada = [c.rua, c.localidade].filter(Boolean).join(', ');
     const temLoc = c.lat || c.rua || c.localidade;
+
     return `<div class="cRow" onclick="verCliente('${c.nome.replace(/'/g,"\\'")}')">
       <div class="avatar">${nomeMostrar[0].toUpperCase()}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nomeMostrar)}</div>
-        <div style="font-size:11px;color:var(--mu)">${c.tel||''} · ${fatsCli.length} faturas${c.denom?` · ${esc(c.nome)}`:''}${c.nif?` · NIF ${c.nif}`:''}</div>
+        <div style="font-size:11px;color:var(--mu)">${c.tel||''} · ${fatsCli.length} fat.${c.denom?` · ${esc(c.nome)}`:''}${c.nif?` · NIF ${c.nif}`:''}</div>
         ${morada ? `<div class="moradaCli">📍 ${esc(morada)}</div>` : ''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
-        ${pend > 0 ? `<div style="color:var(--r);font-weight:800;font-size:13px">${pend.toFixed(2)}€</div><div style="font-size:9px;color:var(--r)">pendente</div>` : `<div style="color:var(--gr);font-weight:700;font-size:12px">✓ OK</div>`}
+        ${pend > 0
+          ? `<div style="color:var(--r);font-weight:800;font-size:13px">${pend.toFixed(2)}€</div><div style="font-size:9px;color:var(--r)">pendente</div>`
+          : fatsParaPendente.length > 0
+            ? `<div style="color:var(--gr);font-weight:700;font-size:12px">✓ OK</div>`
+            : `<div style="color:var(--mu);font-size:11px">sem fat.</div>`
+        }
         ${temLoc ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${c.lat||'null'},${c.lng||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : ''}
       </div>
     </div>`;
@@ -1617,11 +1629,20 @@ async function recarregarClientes() {
 function verCliente(nome) {
   const cli = DB_CLIENTES.find(c => c.nome === nome || c.denom === nome);
   const nomeMostrar = (cli && cli.denom) ? cli.denom : nome;
-  // Faturas do cliente (por nome ou denom)
-  const fatsCli = FATURAS.filter(f => f.nome === nomeMostrar || f.nome === nome || (cli && cli.denom && f.nome === cli.denom));
-  // NC desconta
-  const total = fatsCli.reduce((a,f) => a + (f.tipo === 'NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
-  const pagas = fatsCli.filter(f => f.pago).reduce((a,f) => a + (f.tipo === 'NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+
+  // Faturas do cliente — match por nome E por denom
+  const fatsCli = FATURAS.filter(f =>
+    f.nome === nome || f.nome === nomeMostrar ||
+    (cli && cli.denom && (f.nome === cli.denom || f.nome === cli.nome))
+  );
+
+  // Para comercial: pendente só das suas faturas; admin vê tudo
+  const fatsParaTotal = (!IS_ADMIN && COMERCIAL_ATUAL)
+    ? fatsCli.filter(f => f.comercial === COMERCIAL_ATUAL)
+    : fatsCli;
+
+  const total = fatsParaTotal.reduce((a,f) => a + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+  const pagas = fatsParaTotal.filter(f => f.pago).reduce((a,f) => a + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
   const pend  = total - pagas;
 
   const morada = cli ? [cli.rua, cli.localidade].filter(Boolean).join(', ') : '';
@@ -1647,7 +1668,7 @@ function verCliente(nome) {
         <div class="fatBadge ${{FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo]||'nd'}">${f.tipo}</div>
         <div class="fatInfo">
           <div class="fatNome">${esc(f.num)}</div>
-          <div class="fatSub">${f.data?f.data.split('-').reverse().join('/'):'—'}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}</div>
+          <div class="fatSub">${f.data?f.data.split('-').reverse().join('/'):'—'}${f.comercial&&IS_ADMIN?` · <span style="color:var(--s);font-size:10px">${esc(NOMES_CONFIG[f.comercial]||f.comercial)}</span>`:''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-weight:800;color:${isNC?'var(--gr)':f.pago?'var(--gr)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</span>
