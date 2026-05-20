@@ -937,9 +937,11 @@ async function eliminarFaturaSupabase(id) {
 // Carregar faturas do Supabase
 async function carregarFaturas() {
   try {
-    let q = db.from('faturas').select('id,nome,nif,tipo,num,data,valor,pago,comercial,criado_em').order('data', { ascending: true });
-    if(!IS_ADMIN && COMERCIAL_ATUAL) q = q.eq('comercial', COMERCIAL_ATUAL);
-    const { data, error } = await q;
+    // Carregar TODAS as faturas sempre — necessário para calcular pendentes por cliente
+    // O filtro por comercial é feito em memória no getFaturasFiltradas()
+    const { data, error } = await db.from('faturas')
+      .select('id,nome,nif,tipo,num,data,valor,pago,comercial,criado_em')
+      .order('data', { ascending: true });
     if(error) throw error;
     FATURAS = (data || []).map(f => ({
       id: f.id, nome: f.nome, nif: f.nif, tipo: f.tipo,
@@ -1039,32 +1041,32 @@ async function init() {
   document.getElementById('relDe').value = HOJE;
   document.getElementById('relAte').value = HOJE;
 
-  // ── TESTE DE LIGAÇÃO AO SUPABASE via SDK ──
-  console.log('🔌 A testar ligação ao Supabase...');
-  try {
-    const { data, error } = await db.from('faturas').select('id').limit(1);
-    if(error) throw error;
-    console.log('✅ Supabase OK');
-    esconderErroDB();
-  } catch(e) {
-    console.error('❌ Supabase erro:', e.message);
-    mostrarErroDB('Erro de ligação: ' + e.message);
+  adicionarCSS();
+
+  // ── 1. Carregar clientes (PRIMEIRO — necessários para botão IR e pendentes) ──
+  // Usar cache local imediatamente para render rápido
+  const cacheClientes = localStorage.getItem('cache_clientes');
+  if(cacheClientes) {
+    try { DB_CLIENTES = JSON.parse(cacheClientes); } catch(e) {}
   }
 
-  // Carregar clientes
+  // Depois atualizar do Supabase
   try {
     const { data: cli, error } = await db.from('clientes').select('*').order('nome', { ascending: true });
     if(error) throw error;
     DB_CLIENTES = cli || [];
+    localStorage.setItem('cache_clientes', JSON.stringify(DB_CLIENTES));
     console.log('✅ Clientes carregados:', DB_CLIENTES.length);
+    esconderErroDB();
   } catch(e) {
     console.error('❌ Clientes erro:', e.message);
+    mostrarErroDB('Erro ao carregar clientes: ' + e.message);
   }
 
-  adicionarCSS();
+  // ── 2. Carregar faturas (usa todos os comerciais para admin; próprias para comercial) ──
   await carregarFaturas();
 
-  // Verificar faturas locais para migrar
+  // ── 3. Verificar faturas locais para migrar ──
   const locais = JSON.parse(localStorage.getItem('scan_faturas') || localStorage.getItem('scan_faturas_backup') || '[]');
   if(locais.length > 0) {
     const migDiv = document.getElementById('migracaoDiv');
@@ -1075,6 +1077,7 @@ async function init() {
     }
   }
 
+  // ── 4. Render (clientes e faturas já estão carregados) ──
   renderFaturas();
   renderClientes();
   renderRelatorio();
@@ -1096,6 +1099,17 @@ function ir(i) {
   document.querySelectorAll('.ecra').forEach((e,j) => e.classList.toggle('a', j===i));
   document.querySelectorAll('.nBtn').forEach((b,j) => b.classList.toggle('a', j===i));
   if(i !== 0 && _camAtiva) pararCam();
+  // Ao abrir aba Clientes: re-sincronizar clientes do Supabase silenciosamente
+  if(i === 2 || i === 1) {
+    db.from('clientes').select('*').order('nome', { ascending: true }).then(({ data, error }) => {
+      if(!error && data && data.length > 0) {
+        DB_CLIENTES = data;
+        localStorage.setItem('cache_clientes', JSON.stringify(DB_CLIENTES));
+        renderClientes();
+        renderFaturas(); // atualiza botões IR
+      }
+    });
+  }
 }
 
 function fecharModal(id) {
@@ -1615,7 +1629,9 @@ async function recarregarClientes() {
     if(error) throw error;
     if(data && data.length > 0) {
       DB_CLIENTES = data;
+      localStorage.setItem('cache_clientes', JSON.stringify(DB_CLIENTES));
       renderClientes();
+      renderFaturas(); // re-render para atualizar botões IR
       toast('✅ ' + data.length + ' clientes carregados');
     } else {
       el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu)"><div style="font-size:24px;margin-bottom:8px">⚠️</div><b>Tabela vazia ou sem registos</b></div>';
