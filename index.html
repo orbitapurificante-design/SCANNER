@@ -127,9 +127,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(6px);background:var(--n);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
 #toast.v{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* Botão IR (navegação GPS) */
-.btnIr{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:linear-gradient(135deg,#1a4a8a,#2563eb);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;white-space:nowrap;text-decoration:none}
-.btnIr svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* Botão IR navegação GPS */
+.btnIr{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:linear-gradient(135deg,#1a4a8a,#2563eb);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;white-space:nowrap}
+.btnIr svg{width:13px;height:13px;flex-shrink:0}
 .moradaCli{font-size:10px;color:var(--mu);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 @media print{
@@ -1469,9 +1469,9 @@ function renderFaturas() {
     return da < db ? -1 : da > db ? 1 : 0;
   });
 
-  // Actualizar subtotais
-  const totVal  = lista.reduce((s,f) => s + (parseFloat(f.valor)||0), 0);
-  const pagoVal = lista.filter(f => f.pago).reduce((s,f) => s + (parseFloat(f.valor)||0), 0);
+  // NC desconta nos totais
+  const totVal  = lista.reduce((s,f) => s + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+  const pagoVal = lista.filter(f => f.pago).reduce((s,f) => s + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
   const pendVal = totVal - pagoVal;
   const filtLabel = ['Todos','Pagos','Pendentes','Hoje'][FILTRO_FAT] + (search ? ` · "${search}"` : '');
   document.getElementById('subtotaisLabel').textContent = filtLabel + ' (' + lista.length + ')';
@@ -1489,24 +1489,21 @@ function renderFaturas() {
   el.innerHTML = lista.map(f => {
     const cor = {FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo] || 'nd';
     const dataFmt = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '';
-    // Tentar encontrar cliente para obter morada/coordenadas
+    const isNC = f.tipo === 'NC';
+    // Localizar cliente para botão IR
     const cli = DB_CLIENTES.find(c => c.nome === f.nome || c.denom === f.nome);
-    const temLocalizacao = cli && (cli.lat || cli.rua || cli.localidade);
+    const temLoc = cli && (cli.lat || cli.rua || cli.localidade);
     const moradaCli = cli ? [cli.rua, cli.localidade].filter(Boolean).join(', ') : '';
-    const btnIr = (!f.pago && temLocalizacao) ? `
-      <button class="btnIr" onclick="event.stopPropagation();irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${(moradaCli).replace(/'/g,"\\'")}')">
-        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-        IR
-      </button>` : '';
+    const btnIr = (!f.pago && !isNC && temLoc) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${moradaCli.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
     return `<div class="fatRow" onclick="editarFatura('${f.id}')" style="cursor:pointer">
       <div class="fatBadge ${cor}">${f.tipo}</div>
       <div class="fatInfo">
         <div class="fatNome">${esc(f.nome)}</div>
-        <div class="fatSub">${esc(f.num)} · ${dataFmt}${f.nif ? ' · NIF: '+f.nif : ''}${(f.notas&&f.notas.length>0)?` · <span style="color:${f.notas.some(n=>!n.resolvida)?'#c9a84c':'var(--gr)'}">⚠️ ${f.notas.length} nota(s)</span>`:''}</div>
-        ${moradaCli && !f.pago ? `<div class="moradaCli">📍 ${esc(moradaCli)}</div>` : ''}
+        <div class="fatSub">${esc(f.num)} · ${dataFmt}${f.nif ? ' · NIF: '+f.nif : ''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}${(f.notas&&f.notas.length>0)?` · <span style="color:${f.notas.some(n=>!n.resolvida)?'#c9a84c':'var(--gr)'}">⚠️ ${f.notas.length} nota(s)</span>`:''}</div>
+        ${moradaCli && !f.pago && !isNC ? `<div class="moradaCli">📍 ${esc(moradaCli)}</div>` : ''}
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-        <div class="fatVal" style="color:${f.pago?'var(--gr)':'var(--r)'}">${parseFloat(f.valor).toFixed(2)}€</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+        <div class="fatVal" style="color:${isNC?'var(--gr)':f.pago?'var(--gr)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</div>
         <div style="display:flex;align-items:center;gap:5px">
           ${btnIr}
           <div class="fatPago ${f.pago?'sim':'nao'}" onclick="event.stopPropagation();togglePago('${f.id}');" title="${f.pago?'Pago':'Pendente'}">
@@ -1573,9 +1570,13 @@ function renderClientes() {
 
   el.innerHTML = lista.map(c => {
     const nomeMostrar = c.denom || c.nome;
-    const fatsCli = FATURAS.filter(f => f.nome === nomeMostrar || f.nome === c.nome || f.nome === (c.denom||''));
-    const total = fatsCli.reduce((a,f) => a+(parseFloat(f.valor)||0), 0);
-    const pagas = fatsCli.filter(f => f.pago).reduce((a,f) => a+(parseFloat(f.valor)||0), 0);
+    // Calcular pendente: faturas que correspondam ao nome ou denom do cliente
+    const fatsCli = FATURAS.filter(f =>
+      f.nome === nomeMostrar || f.nome === c.nome || (c.denom && f.nome === c.denom)
+    );
+    // NC desconta
+    const total = fatsCli.reduce((a,f) => a + (f.tipo === 'NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+    const pagas = fatsCli.filter(f => f.pago).reduce((a,f) => a + (f.tipo === 'NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
     const pend  = total - pagas;
     const morada = [c.rua, c.localidade].filter(Boolean).join(', ');
     const temLoc = c.lat || c.rua || c.localidade;
@@ -1588,10 +1589,7 @@ function renderClientes() {
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
         ${pend > 0 ? `<div style="color:var(--r);font-weight:800;font-size:13px">${pend.toFixed(2)}€</div><div style="font-size:9px;color:var(--r)">pendente</div>` : `<div style="color:var(--gr);font-weight:700;font-size:12px">✓ OK</div>`}
-        ${temLoc ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${c.lat||'null'},${c.lng||'null'},'${morada.replace(/'/g,"\\'")}')">
-          <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-          IR
-        </button>` : ''}
+        ${temLoc ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${c.lat||'null'},${c.lng||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -1601,7 +1599,7 @@ async function recarregarClientes() {
   const el = document.getElementById('listaCli');
   el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu)">A carregar...</div>';
   try {
-    const { data, error } = await db.from('clientes').select('id,nome,tel,nif,denom,rua,localidade,lat,lng').limit(500);
+    const { data, error } = await db.from('clientes').select('*').order('nome', { ascending: true }).limit(500);
     if(error) throw error;
     if(data && data.length > 0) {
       DB_CLIENTES = data;
@@ -1617,42 +1615,49 @@ async function recarregarClientes() {
 }
 
 function verCliente(nome) {
-  const fatsCli = FATURAS.filter(f => f.nome === nome);
-  const total = fatsCli.reduce((a,f) => a+f.valor, 0);
-  const pagas = fatsCli.filter(f => f.pago).reduce((a,f) => a+f.valor, 0);
   const cli = DB_CLIENTES.find(c => c.nome === nome || c.denom === nome);
+  const nomeMostrar = (cli && cli.denom) ? cli.denom : nome;
+  // Faturas do cliente (por nome ou denom)
+  const fatsCli = FATURAS.filter(f => f.nome === nomeMostrar || f.nome === nome || (cli && cli.denom && f.nome === cli.denom));
+  // NC desconta
+  const total = fatsCli.reduce((a,f) => a + (f.tipo === 'NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+  const pagas = fatsCli.filter(f => f.pago).reduce((a,f) => a + (f.tipo === 'NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+  const pend  = total - pagas;
+
   const morada = cli ? [cli.rua, cli.localidade].filter(Boolean).join(', ') : '';
   const temLoc = cli && (cli.lat || cli.rua || cli.localidade);
 
-  document.getElementById('mCliTit').textContent = nome;
+  document.getElementById('mCliTit').textContent = nomeMostrar;
   document.getElementById('mCliBody').innerHTML = `
-    ${morada || temLoc ? `<div style="display:flex;align-items:center;gap:10px;background:#eef2f7;border-radius:12px;padding:10px 12px;margin-bottom:12px">
+    ${temLoc ? `<div style="display:flex;align-items:center;gap:10px;background:#eef2f7;border-radius:12px;padding:10px 12px;margin-bottom:12px">
       <div style="flex:1;font-size:12px;color:var(--mu)">📍 ${esc(morada||'Coordenadas disponíveis')}</div>
       <button class="btnIr" onclick="irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${morada.replace(/'/g,"\\'")}')">
-        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
         INICIAR VIAGEM
       </button>
     </div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
       <div class="sItem"><div class="sVal" style="color:var(--gr);font-size:18px">${pagas.toFixed(2)}€</div><div class="sLbl">Pago</div></div>
-      <div class="sItem"><div class="sVal" style="color:var(--r);font-size:18px">${(total-pagas).toFixed(2)}€</div><div class="sLbl">Pendente</div></div>
+      <div class="sItem"><div class="sVal" style="color:${pend>0?'var(--r)':'var(--gr)'};font-size:18px">${pend.toFixed(2)}€</div><div class="sLbl">Pendente</div></div>
     </div>
-    ${fatsCli.length ? fatsCli.map(f => `
-      <div class="fatRow">
-        <div class="fatBadge ${{FT:'ft',FS:'fs',VD:'vd',ND:'nd'}[f.tipo]||'nd'}">${f.tipo}</div>
+    ${fatsCli.length ? fatsCli.map(f => {
+      const isNC = f.tipo === 'NC';
+      const btnIr2 = (!f.pago && temLoc && !isNC) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
+      return `<div class="fatRow">
+        <div class="fatBadge ${{FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo]||'nd'}">${f.tipo}</div>
         <div class="fatInfo">
           <div class="fatNome">${esc(f.num)}</div>
-          <div class="fatSub">${f.data?f.data.split('-').reverse().join('/'):'—'}</div>
+          <div class="fatSub">${f.data?f.data.split('-').reverse().join('/'):'—'}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-weight:800;color:${f.pago?'var(--gr)':'var(--r)'}">${f.valor.toFixed(2)}€</span>
-          ${!f.pago && temLoc ? `<button class="btnIr" onclick="irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${morada.replace(/'/g,"\\'")}')">
-            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : ''}
+          <span style="font-weight:800;color:${isNC?'var(--gr)':f.pago?'var(--gr)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</span>
+          ${btnIr2}
           <div class="fatPago ${f.pago?'sim':'nao'}" onclick="togglePago('${f.id}');verCliente('${nome.replace(/'/g,"\\'")}')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
         </div>
-      </div>`).join('') : '<div style="text-align:center;padding:20px;color:var(--mu)">Sem faturas</div>'}
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:20px;color:var(--mu)">Sem faturas</div>'}
   `;
   document.getElementById('mCli').classList.add('a');
 }
@@ -1694,8 +1699,9 @@ function renderRelatorio() {
   });
 
   // Totais gerais
-  const valPago = lista.filter(f=>f.pago).reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
-  const valPend = lista.filter(f=>!f.pago).reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
+  // NC desconta nos totais
+  const valPago = lista.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
+  const valPend = lista.filter(f=>!f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
   document.getElementById('relFats').textContent = lista.length;
   document.getElementById('relValPago').textContent = valPago.toFixed(2)+'€';
   document.getElementById('relValPend').textContent = valPend.toFixed(2)+'€';
@@ -1706,16 +1712,16 @@ function renderRelatorio() {
     rEl.style.display = 'flex';
     rEl.style.flexDirection = 'column';
 
-    const hT = listaHoje.reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
-    const hP = listaHoje.filter(f=>f.pago).reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
+    const hT = listaHoje.reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
+    const hP = listaHoje.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
     const hPend = hT - hP;
     document.getElementById('relHojeQtd').textContent   = listaHoje.length+' doc'+(listaHoje.length!==1?'s':'');
     document.getElementById('relHojeTotal').textContent = hT.toFixed(2)+'€';
     document.getElementById('relHojePago').textContent  = '✔ '+hP.toFixed(2)+'€ pago';
     document.getElementById('relHojePend').textContent  = '⏳ '+hPend.toFixed(2)+'€ pend.';
 
-    const aT = listaAnt.reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
-    const aP = listaAnt.filter(f=>f.pago).reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
+    const aT = listaAnt.reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
+    const aP = listaAnt.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
     const aPend = aT - aP;
     document.getElementById('relAntQtd').textContent   = listaAnt.length+' doc'+(listaAnt.length!==1?'s':'');
     document.getElementById('relAntTotal').textContent = aT.toFixed(2)+'€';
@@ -1750,17 +1756,19 @@ function renderRelatorio() {
     const cor = {FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo]||'nd';
     const dataFmt = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
     const hora = f.criadoEm ? new Date(f.criadoEm).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '';
+    const isNC = f.tipo === 'NC';
     return `<div class="relRow" onclick="editarFatura('${f.id}')" style="cursor:pointer">
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.nome)}</div>
         <div style="font-size:11px;color:var(--mu);display:flex;align-items:center;gap:4px;flex-wrap:wrap">
           <span class="fatBadge ${cor}" style="width:auto;height:auto;padding:1px 5px;font-size:9px;border-radius:4px">${f.tipo}</span>
           ${esc(f.num)} · Fat: ${dataFmt}${hora?' · Rec: '+hora:''}
+          ${isNC?'· <span style="color:var(--gr);font-weight:700;font-size:10px">DESCONTO</span>':''}
           ${IS_ADMIN && f.comercial ? `· <span style="color:var(--s);font-size:10px">${esc(NOMES_CONFIG[f.comercial]||f.comercial)}</span>` : ''}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <span style="font-weight:800;font-size:14px">${parseFloat(f.valor).toFixed(2)}€</span>
+        <span style="font-weight:800;font-size:14px;color:${isNC?'var(--gr)':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</span>
         <span class="relPago ${f.pago?'s':'n'}" onclick="event.stopPropagation();togglePago('${f.id}');renderRelatorio()" style="cursor:pointer">${f.pago?'PAGO':'PEND.'}</span>
       </div>
     </div>`;
@@ -1778,8 +1786,8 @@ function renderRelatorio() {
     });
     diasOrdem.sort((a,b) => b>a?1:b<a?-1:0);
 
-    const gTotal = grpLista.reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
-    const gPago  = grpLista.filter(f=>f.pago).reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
+    const gTotal = grpLista.reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
+    const gPago  = grpLista.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
     const gPend  = gTotal-gPago;
     const bg = isHoje ? 'linear-gradient(135deg,#27ae60,#2ecc71)' : 'linear-gradient(135deg,#1a2745,#223366)';
     const subC = isHoje ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.5)';
@@ -1797,8 +1805,8 @@ function renderRelatorio() {
 
     diasOrdem.forEach(dia => {
       const grp = diasMap[dia];
-      const dTotal = grp.reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
-      const dPago  = grp.filter(f=>f.pago).reduce((s,f)=>s+(parseFloat(f.valor)||0),0);
+      const dTotal = grp.reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
+      const dPago  = grp.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
       const dPend  = dTotal-dPago;
       const dLabel = fmtDia(dia);
 
@@ -1842,20 +1850,21 @@ function imprimirFaturas() {
   if(search) lista = lista.filter(f => f.nome.toLowerCase().includes(search) || f.num.toLowerCase().includes(search));
   lista.sort((a,b) => (a.data||'') < (b.data||'') ? -1 : 1);
 
-  const totVal  = lista.reduce((s,f) => s+(parseFloat(f.valor)||0), 0);
-  const pagoVal = lista.filter(f=>f.pago).reduce((s,f) => s+(parseFloat(f.valor)||0), 0);
+  const totVal  = lista.reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
+  const pagoVal = lista.filter(f=>f.pago).reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
   const pendVal = totVal - pagoVal;
   const hoje = new Date().toLocaleDateString('pt-PT');
 
   const linhas = lista.map((f,i) => {
     const dataFmt = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
+    const isNC = f.tipo === 'NC';
     return `<tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
       <td>${i+1}</td>
       <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
-      <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
+      <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
       <td>${esc(f.num)}</td>
       <td style="text-align:center">${dataFmt}</td>
-      <td style="text-align:right;font-weight:700">${parseFloat(f.valor).toFixed(2)} €</td>
+      <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
       <td style="text-align:center"><span style="background:${f.pago?'#d4edda':'#f8d7da'};color:${f.pago?'#155724':'#721c24'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${f.pago?'PAGO':'PEND.'}</span></td>
     </tr>`;
   }).join('');
@@ -1890,8 +1899,8 @@ function imprimirRelatorio() {
     return da > db2 ? 1 : da < db2 ? -1 : 0;
   });
 
-  const totVal  = lista.reduce((s,f) => s+(parseFloat(f.valor)||0), 0);
-  const pagoVal = lista.filter(f=>f.pago).reduce((s,f) => s+(parseFloat(f.valor)||0), 0);
+  const totVal  = lista.reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
+  const pagoVal = lista.filter(f=>f.pago).reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
   const pendVal = totVal - pagoVal;
   const hoje = new Date().toLocaleDateString('pt-PT');
   const deFmt = de.split('-').reverse().join('/');
@@ -1904,14 +1913,15 @@ function imprimirRelatorio() {
     lista.forEach((f,i) => {
       const dataFat = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
       const dataRec = f.criadoEm ? new Date(f.criadoEm).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      const isNC = f.tipo === 'NC';
       corpoTabela += `<tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
         <td>${i+1}</td>
         <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
-        <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
+        <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
         <td>${esc(f.num)}</td>
         <td style="text-align:center">${dataFat}</td>
         <td style="text-align:center;font-size:11px">${dataRec}</td>
-        <td style="text-align:right;font-weight:700">${parseFloat(f.valor).toFixed(2)} €</td>
+        <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
         <td style="text-align:center"><span style="background:${f.pago?'#d4edda':'#f8d7da'};color:${f.pago?'#155724':'#721c24'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${f.pago?'PAGO':'PEND.'}</span></td>
       </tr>`;
     });
@@ -1943,8 +1953,8 @@ function imprimirRelatorio() {
   ordemGrupos.forEach(key => {
     const grp = grupos[key];
     const nomeColab = key === '__sem__' ? '— Sem colaborador —' : (NOMES_CONFIG[key] || key);
-    const grpTotal = grp.reduce((s,f) => s+(parseFloat(f.valor)||0), 0);
-    const grpPago  = grp.filter(f=>f.pago).reduce((s,f) => s+(parseFloat(f.valor)||0), 0);
+    const grpTotal = grp.reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
+    const grpPago  = grp.filter(f=>f.pago).reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
     const grpPend  = grpTotal - grpPago;
     const cols = 9; // número de colunas
 
@@ -1959,15 +1969,16 @@ function imprimirRelatorio() {
       numGlobal++;
       const dataFat = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
       const dataRec = f.criadoEm ? new Date(f.criadoEm).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      const isNC = f.tipo === 'NC';
       corpoTabela += `<tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
         <td>${numGlobal}</td>
         <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
-        <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
+        <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
         <td>${esc(f.num)}</td>
         <td style="text-align:center">${dataFat}</td>
         <td style="text-align:center;font-size:11px">${dataRec}</td>
         <td style="font-size:11px;color:#555">${esc(nomeColab)}</td>
-        <td style="text-align:right;font-weight:700">${parseFloat(f.valor).toFixed(2)} €</td>
+        <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
         <td style="text-align:center"><span style="background:${f.pago?'#d4edda':'#f8d7da'};color:${f.pago?'#155724':'#721c24'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${f.pago?'PAGO':'PEND.'}</span></td>
       </tr>`;
     });
@@ -2176,40 +2187,32 @@ async function eliminarFaturaEdit() {
 // ═══════════════════════════════════════════
 // TOAST & UTILS
 // ═══════════════════════════════════════════
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('v');
-  setTimeout(() => t.classList.remove('v'), 2400);
-}
-
 // ── NAVEGAÇÃO GPS ──────────────────────────────────────────────────
 function irParaCliente(lat, lng, morada) {
-  // Tenta coordenadas primeiro, depois morada
   let url;
   const online = navigator.onLine;
-
   if (lat && lng) {
-    const destino = lat + ',' + lng;
-    if (online) {
-      // Google Maps online
-      url = 'https://www.google.com/maps/dir/?api=1&destination=' + destino + '&travelmode=driving';
-    } else {
-      // Fallback offline: geo: URI (abre app nativa de mapas)
-      url = 'geo:' + destino + '?q=' + destino;
-    }
+    const dest = lat + ',' + lng;
+    url = online
+      ? 'https://www.google.com/maps/dir/?api=1&destination=' + dest + '&travelmode=driving'
+      : 'geo:' + dest + '?q=' + dest;
   } else if (morada) {
     const enc = encodeURIComponent(morada);
-    if (online) {
-      url = 'https://www.google.com/maps/dir/?api=1&destination=' + enc + '&travelmode=driving';
-    } else {
-      url = 'geo:0,0?q=' + enc;
-    }
+    url = online
+      ? 'https://www.google.com/maps/dir/?api=1&destination=' + enc + '&travelmode=driving'
+      : 'geo:0,0?q=' + enc;
   } else {
     toast('⚠️ Sem morada ou coordenadas para este cliente');
     return;
   }
   window.open(url, '_blank');
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('v');
+  setTimeout(() => t.classList.remove('v'), 2400);
 }
 
 function esc(s) {
