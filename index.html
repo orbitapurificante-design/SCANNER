@@ -925,7 +925,8 @@ async function guardarFaturaSupabase(fat, isSync = false) {
     valor: parseFloat(fat.valor) || 0,
     pago: fat.pago || false,
     comercial: fat.comercial || null,
-    criado_em: fat.criadoEm || new Date().toISOString()
+    criado_em: fat.criadoEm || new Date().toISOString(),
+    data_recebimento: fat.dataRecebimento || null
     // NOTA: campo 'notas' não existe na tabela do Supabase — guardado só localmente
   };
   try {
@@ -965,7 +966,8 @@ async function actualizarFaturaSupabase(fat) {
       nome: fat.nome, nif: fat.nif || null, tipo: fat.tipo,
       num: fat.num, data: fat.data || null,
       valor: parseFloat(fat.valor) || 0,
-      pago: fat.pago || false, comercial: fat.comercial || null
+      pago: fat.pago || false, comercial: fat.comercial || null,
+      data_recebimento: fat.dataRecebimento || null
     }).eq('id', fat.id);
     if(error) throw error;
     return true;
@@ -992,13 +994,14 @@ async function carregarFaturas() {
     // Carregar TODAS as faturas sempre — necessário para calcular pendentes por cliente
     // O filtro por comercial é feito em memória no getFaturasFiltradas()
     const { data, error } = await db.from('faturas')
-      .select('id,nome,nif,tipo,num,data,valor,pago,comercial,criado_em')
+      .select('id,nome,nif,tipo,num,data,valor,pago,comercial,criado_em,data_recebimento')
       .order('data', { ascending: true });
     if(error) throw error;
     FATURAS = (data || []).map(f => ({
       id: f.id, nome: f.nome, nif: f.nif, tipo: f.tipo,
       num: f.num, data: f.data, valor: parseFloat(f.valor) || 0,
       pago: f.pago || false, comercial: f.comercial, criadoEm: f.criado_em,
+      dataRecebimento: f.data_recebimento || null,
       notas: f.notas || []
     }));
     console.log('✅ Faturas carregadas:', FATURAS.length);
@@ -1599,6 +1602,12 @@ async function togglePago(id) {
   const f = FATURAS.find(x => x.id === id);
   if(!f) return;
   f.pago = !f.pago;
+  if(f.pago) {
+    const hj = new Date();
+    f.dataRecebimento = hj.getFullYear()+'-'+String(hj.getMonth()+1).padStart(2,'0')+'-'+String(hj.getDate()).padStart(2,'0');
+  } else {
+    f.dataRecebimento = null;
+  }
   await actualizarFaturaSupabase(f);
   renderFaturas();
   renderRelatorio();
@@ -1786,32 +1795,26 @@ function renderRelatorio() {
     ? [...FATURAS]
     : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
 
-  // Todos os docs do período (por data de emissão da fatura)
-  // Se f.data estiver vazio, usa criadoEm como fallback
+  // Filtrar apenas faturas pagas com data de recebimento no período selecionado
   lista = lista.filter(f => {
-    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
-    return dataRef >= de && dataRef <= ate;
+    if(!f.pago || !f.dataRecebimento) return false;
+    const dataRec = f.dataRecebimento.substring(0,10);
+    return dataRec >= de && dataRec <= ate;
   });
 
 
 
   // Ordenar mais recente → mais antigo
   lista.sort((a,b) => {
-    const da = b.data||b.criadoEm||'';
-    const db2 = a.data||a.criadoEm||'';
+    const da = b.dataRecebimento||'';
+    const db2 = a.dataRecebimento||'';
     return da > db2 ? 1 : da < db2 ? -1 : 0;
   });
 
-  // ── Separar: hoje vs anteriores ──
-  // "Hoje" = data de emissão da fatura é hoje; "Anteriores" = data de emissão anterior a hoje
-  const listaHoje = lista.filter(f => {
-    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
-    return dataRef === HOJE;
-  });
-  const listaAnt = lista.filter(f => {
-    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
-    return dataRef !== HOJE;
-  });
+  // ── Separar: recebidos hoje vs períodos anteriores ──
+  // "Hoje" = data de recebimento é hoje; "Anteriores" = data de recebimento anterior a hoje
+  const listaHoje = lista.filter(f => (f.dataRecebimento||'').substring(0,10) === HOJE);
+  const listaAnt  = lista.filter(f => (f.dataRecebimento||'').substring(0,10) !== HOJE);
 
   // Totais gerais
   // NC desconta nos totais
@@ -1895,7 +1898,7 @@ function renderRelatorio() {
     const diasMap = {};
     const diasOrdem = [];
     grpLista.forEach(f => {
-      const dia = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
+      const dia = (f.dataRecebimento||'').substring(0,10);
       if(!diasMap[dia]) { diasMap[dia]=[]; diasOrdem.push(dia); }
       diasMap[dia].push(f);
     });
