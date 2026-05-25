@@ -1007,6 +1007,8 @@ async function carregarFaturas() {
     console.log('✅ Faturas carregadas:', FATURAS.length);
     esconderErroDB();
     verificarPendentes();
+    // Migração: faturas já pagas sem data_recebimento → usar criadoEm como data de recebimento
+    migrarDataRecebimento();
     return true;
   } catch(e) {
     console.error('❌ carregarFaturas erro:', e.message);
@@ -1014,6 +1016,26 @@ async function carregarFaturas() {
     FATURAS = JSON.parse(localStorage.getItem('scan_faturas_backup') || '[]');
     return false;
   }
+}
+
+// Migração automática: faturas pagas sem data_recebimento recebem criadoEm como fallback
+async function migrarDataRecebimento() {
+  const semData = FATURAS.filter(f => f.pago && !f.dataRecebimento);
+  if(semData.length === 0) return;
+  console.log('Migrar dataRecebimento para', semData.length, 'faturas...');
+  for(const f of semData) {
+    // Usar criadoEm como data de recebimento (fallback para faturas antigas)
+    const dr = f.criadoEm ? f.criadoEm.substring(0,10) : (f.data||'').substring(0,10);
+    if(!dr) continue;
+    f.dataRecebimento = dr;
+    try {
+      await db.from('faturas').update({ data_recebimento: dr }).eq('id', f.id);
+    } catch(e) {
+      console.warn('Erro migrar fatura', f.id, e.message);
+    }
+  }
+  console.log('Migração dataRecebimento concluída');
+  renderRelatorio();
 }
 
 function uid() { return Date.now() + '_' + Math.random().toString(36).slice(2,7); }
@@ -2006,14 +2028,16 @@ function imprimirRelatorio() {
   if(!de||!ate) return;
 
   let lista = IS_ADMIN ? [...FATURAS] : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
+  // Filtrar apenas faturas pagas com data de recebimento no período
   lista = lista.filter(f => {
-    const dataRec = f.criadoEm ? f.criadoEm.substring(0,10) : (f.data||'').substring(0,10);
+    if(!f.pago || !f.dataRecebimento) return false;
+    const dataRec = f.dataRecebimento.substring(0,10);
     return dataRec >= de && dataRec <= ate;
   });
   // Ordenar: mais recente → mais antiga
   lista.sort((a,b) => {
-    const da = b.criadoEm||b.data||'';
-    const db2 = a.criadoEm||a.data||'';
+    const da = b.dataRecebimento||'';
+    const db2 = a.dataRecebimento||'';
     return da > db2 ? 1 : da < db2 ? -1 : 0;
   });
 
@@ -2030,7 +2054,7 @@ function imprimirRelatorio() {
     // Comercial: tabela simples
     lista.forEach((f,i) => {
       const dataFat = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
-      const dataRec = f.criadoEm ? new Date(f.criadoEm).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      const dataRec = f.dataRecebimento ? f.dataRecebimento.substring(0,10).split('-').reverse().join('/') : '—';
       const isNC = f.tipo === 'NC';
       corpoTabela += `<tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
         <td>${i+1}</td>
@@ -2086,7 +2110,7 @@ function imprimirRelatorio() {
     grp.forEach((f,i) => {
       numGlobal++;
       const dataFat = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
-      const dataRec = f.criadoEm ? new Date(f.criadoEm).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      const dataRec = f.dataRecebimento ? f.dataRecebimento.substring(0,10).split('-').reverse().join('/') : '—';
       const isNC = f.tipo === 'NC';
       corpoTabela += `<tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
         <td>${numGlobal}</td>
