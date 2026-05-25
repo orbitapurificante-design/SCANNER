@@ -1787,26 +1787,28 @@ function renderRelatorio() {
     : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
 
   // Todos os docs do período (por data de emissão da fatura)
+  // Se f.data estiver vazio, usa criadoEm como fallback
   lista = lista.filter(f => {
-    const dataRec = (f.data||'').substring(0,10);
-    return dataRec >= de && dataRec <= ate;
+    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
+    return dataRef >= de && dataRef <= ate;
   });
 
   // Ordenar mais recente → mais antigo
   lista.sort((a,b) => {
-    const da = b.data||'';
-    const db2 = a.data||'';
+    const da = b.data||b.criadoEm||'';
+    const db2 = a.data||a.criadoEm||'';
     return da > db2 ? 1 : da < db2 ? -1 : 0;
   });
 
   // ── Separar: hoje vs anteriores ──
+  // "Hoje" = data de emissão da fatura é hoje; "Anteriores" = data de emissão anterior a hoje
   const listaHoje = lista.filter(f => {
-    const dataRec = (f.data||'').substring(0,10);
-    return dataRec === HOJE;
+    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
+    return dataRef === HOJE;
   });
   const listaAnt = lista.filter(f => {
-    const dataRec = (f.data||'').substring(0,10);
-    return dataRec !== HOJE;
+    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
+    return dataRef !== HOJE;
   });
 
   // Totais gerais
@@ -1891,7 +1893,7 @@ function renderRelatorio() {
     const diasMap = {};
     const diasOrdem = [];
     grpLista.forEach(f => {
-      const dia = (f.data||'').substring(0,10);
+      const dia = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
       if(!diasMap[dia]) { diasMap[dia]=[]; diasOrdem.push(dia); }
       diasMap[dia].push(f);
     });
