@@ -405,6 +405,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <div class="ct" style="margin-bottom:0;flex:1">Pesquisar Cliente</div>
           <button onclick="recarregarClientes()" style="padding:6px 12px;background:var(--s);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">↺</button>
+          <button id="btnNovoCliente" onclick="abrirNovoCliente()" style="display:none;padding:6px 12px;background:var(--gr);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">+ Novo</button>
         </div>
         <input class="inp" id="searchCli" placeholder="Nome, denominação ou telemóvel..." oninput="renderClientes()" style="margin-bottom:0">
       </div>
@@ -587,7 +588,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
   </div>
 </div>
 
-<!-- MODAL CLIENTE -->
+<!-- MODAL CLIENTE (ver faturas) -->
 <div class="modal" id="mCli">
   <div class="mBox">
     <div class="mTit">
@@ -595,6 +596,57 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
       <button onclick="fecharModal('mCli')" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--mu)">×</button>
     </div>
     <div id="mCliBody"></div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR/CRIAR CLIENTE -->
+<div class="modal" id="mCliEdit">
+  <div class="mBox">
+    <div class="mTit">
+      <span id="mCliEditTit">Cliente</span>
+      <button onclick="fecharModal('mCliEdit')" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--mu)">×</button>
+    </div>
+    <input type="hidden" id="mCliEditId">
+
+    <label class="lbl">NIF / Contribuinte</label>
+    <input type="text" class="inp" id="mCliEditNif" placeholder="Ex: 123456789" inputmode="numeric" maxlength="9">
+
+    <label class="lbl">Nome Fiscal / DENOM <span style="color:var(--mu);font-weight:400;font-size:10px">(nome que aparece nas faturas)</span></label>
+    <input type="text" class="inp" id="mCliEditDenom" placeholder="Ex: EMPRESA XPTO LDA" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+
+    <label class="lbl">Nome Curto / Contacto</label>
+    <input type="text" class="inp" id="mCliEditNome" placeholder="Ex: João Silva">
+
+    <label class="lbl">Telemóvel</label>
+    <input type="tel" class="inp" id="mCliEditTel" placeholder="Ex: 912345678">
+
+    <div style="background:#eef2f7;border-radius:14px;padding:14px;margin-bottom:12px">
+      <div class="ct" style="margin-bottom:10px">📍 Morada & Localização</div>
+      <label class="lbl">Rua / Endereço</label>
+      <input type="text" class="inp" id="mCliEditRua" placeholder="Ex: Rua da Liberdade, 123">
+      <label class="lbl">Localidade</label>
+      <input type="text" class="inp" id="mCliEditLocalidade" placeholder="Ex: Porto">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label class="lbl">Latitude</label>
+          <input type="number" class="inp" id="mCliEditLat" placeholder="40.9950" step="any" style="margin-bottom:0">
+        </div>
+        <div>
+          <label class="lbl">Longitude</label>
+          <input type="number" class="inp" id="mCliEditLng" placeholder="-8.5250" step="any" style="margin-bottom:0">
+        </div>
+      </div>
+      <button type="button" onclick="gpsParaCliente()" style="width:100%;margin-top:8px;padding:10px;background:linear-gradient(135deg,var(--s),#2563eb);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">
+        📡 USAR LOCALIZAÇÃO ATUAL
+      </button>
+      <div id="mCliEditGpsStatus" style="font-size:11px;color:var(--mu);text-align:center;margin-top:6px;min-height:16px"></div>
+    </div>
+
+    <button class="bP" onclick="guardarClienteEdit()" style="margin-bottom:8px">GUARDAR</button>
+    <button class="bS" onclick="fecharModal('mCliEdit')">CANCELAR</button>
+    <div id="mCliEditApagarWrap" style="margin-top:8px;display:none">
+      <button class="bD" onclick="apagarClienteEdit()">APAGAR CLIENTE</button>
+    </div>
   </div>
 </div>
 
@@ -763,7 +815,7 @@ function fazerBipe(tipo) {
 // ═══════════════════════════════════════════
 // ESTADO
 // ═══════════════════════════════════════════
-const HOJE = new Date().toISOString().split('T')[0];
+const _hj = new Date(); const HOJE = `${_hj.getFullYear()}-${String(_hj.getMonth()+1).padStart(2,'0')}-${String(_hj.getDate()).padStart(2,'0')}`;
 let DB_CLIENTES = [];
 let FATURAS = []; // carregadas do Supabase
 let FILTRO_FAT = 0;
@@ -1078,6 +1130,11 @@ async function init() {
   }
 
   // ── 4. Render (clientes e faturas já estão carregados) ──
+  // Mostrar botão "+ Novo" só para admin
+  if(IS_ADMIN) {
+    const btn = document.getElementById('btnNovoCliente');
+    if(btn) btn.style.display = 'block';
+  }
   renderFaturas();
   renderClientes();
   renderRelatorio();
@@ -1328,14 +1385,21 @@ function preencherForm(d) {
 function buscarClientePorNif(nif) {
   const matchEl = document.getElementById('nifMatch');
   if(!nif || nif.length < 9) { matchEl.style.display = 'none'; return; }
-  const cli = DB_CLIENTES.find(c => c.nif && c.nif.replace(/\D/g,'') === nif.replace(/\D/g,''));
+  const nifLimpo = nif.replace(/\D/g,'');
+  const cli = DB_CLIENTES.find(c => c.nif && c.nif.replace(/\D/g,'') === nifLimpo);
   if(cli) {
+    // Usa denom se existir (é o nome que aparece nas faturas), senão nome
     const nomeExibir = cli.denom || cli.nome;
     document.getElementById('fNome').value = nomeExibir;
     matchEl.style.display = 'block';
-    matchEl.textContent = '✓ ' + (cli.denom ? cli.denom.substring(0,18) : cli.nome.split(' ')[0]);
+    matchEl.textContent = '✓ ' + nomeExibir.substring(0, 20);
+    matchEl.style.background = 'var(--gr)';
   } else {
-    matchEl.style.display = 'none';
+    // NIF não encontrado na base — limpa o nome e avisa
+    matchEl.style.display = 'block';
+    matchEl.textContent = '⚠ NIF sem cliente';
+    matchEl.style.background = '#c9a84c';
+    // Não limpa o fNome para o comercial poder escrever manualmente
   }
 }
 
@@ -1504,14 +1568,11 @@ function renderFaturas() {
     const cor = {FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo] || 'nd';
     const dataFmt = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '';
     const isNC = f.tipo === 'NC';
-    // Localizar cliente — match por nome direto OU por denom
-    const cli = DB_CLIENTES.find(c =>
-      c.nome === f.nome || c.denom === f.nome ||
-      (c.denom && c.denom === f.nome) || (c.nome === f.nome)
-    );
-    const temLoc = cli && (cli.lat || cli.rua || cli.localidade);
+    // Localizar cliente — matching normalizado por nome e denom
+    const cli = clienteDaFatura(f);
+    const temLoc = cli && (parseFloat(cli.lat) || cli.rua || cli.localidade);
     const moradaCli = cli ? [cli.rua, cli.localidade].filter(Boolean).join(', ') : '';
-    const btnIr = (!f.pago && !isNC && temLoc) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${moradaCli.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
+    const btnIr = (!f.pago && !isNC && temLoc) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${parseFloat(cli.lat)||'null'},${parseFloat(cli.lng)||'null'},'${moradaCli.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
     return `<div class="fatRow" onclick="editarFatura('${f.id}')" style="cursor:pointer">
       <div class="fatBadge ${cor}">${f.tipo}</div>
       <div class="fatInfo">
@@ -1554,15 +1615,33 @@ function actualizarStats() {
 // ═══════════════════════════════════════════
 // CLIENTES
 // ═══════════════════════════════════════════
-function renderClientes() {
-  const q = (document.getElementById('searchCli')?.value || '').toLowerCase();
 
-  // Todos os comerciais vêem TODOS os clientes
-  // (o filtro por comercial era demasiado restritivo — escondia clientes novos sem faturas)
+// Normalizar nome para comparação (minúsculas, sem espaços extra)
+function nn(s) { return (s||'').toLowerCase().trim(); }
+
+// Verificar se uma fatura pertence a um cliente
+function faturaDoCliente(f, c) {
+  const fn = nn(f.nome);
+  return fn && (
+    fn === nn(c.nome) ||
+    (c.denom && fn === nn(c.denom))
+  );
+}
+
+// Encontrar cliente de uma fatura
+function clienteDaFatura(f) {
+  return DB_CLIENTES.find(c => faturaDoCliente(f, c));
+}
+
+function renderClientes() {
+  const q = (document.getElementById('searchCli')?.value || '').toLowerCase().trim();
+
   const lista = DB_CLIENTES.filter(c =>
-    !q || c.nome.toLowerCase().includes(q) || (c.tel||'').includes(q) ||
-    (c.denom && c.denom.toLowerCase().includes(q)) ||
-    (c.localidade && c.localidade.toLowerCase().includes(q))
+    !q ||
+    nn(c.nome).includes(q) ||
+    (c.tel||'').includes(q) ||
+    (c.denom && nn(c.denom).includes(q)) ||
+    (c.localidade && nn(c.localidade).includes(q))
   );
 
   const el = document.getElementById('listaCli');
@@ -1583,10 +1662,8 @@ function renderClientes() {
   el.innerHTML = lista.map(c => {
     const nomeMostrar = c.denom || c.nome;
 
-    // Faturas deste cliente (pelo nome ou denom)
-    const fatsCli = FATURAS.filter(f =>
-      f.nome === nomeMostrar || f.nome === c.nome || (c.denom && f.nome === c.denom)
-    );
+    // Usar faturaDoCliente para matching normalizado
+    const fatsCli = FATURAS.filter(f => faturaDoCliente(f, c));
 
     // Para comercial: só conta o pendente das SUAS faturas
     const fatsParaPendente = (!IS_ADMIN && COMERCIAL_ATUAL)
@@ -1599,8 +1676,7 @@ function renderClientes() {
     const pend  = total - pagas;
 
     const morada = [c.rua, c.localidade].filter(Boolean).join(', ');
-    const temLoc = c.lat || c.rua || c.localidade;
-
+    const temLoc = parseFloat(c.lat) || c.rua || c.localidade;
     return `<div class="cRow" onclick="verCliente('${c.nome.replace(/'/g,"\\'")}')">
       <div class="avatar">${nomeMostrar[0].toUpperCase()}</div>
       <div style="flex:1;min-width:0">
@@ -1611,11 +1687,11 @@ function renderClientes() {
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
         ${pend > 0
           ? `<div style="color:var(--r);font-weight:800;font-size:13px">${pend.toFixed(2)}€</div><div style="font-size:9px;color:var(--r)">pendente</div>`
-          : fatsParaPendente.length > 0
+          : fatsCli.length > 0
             ? `<div style="color:var(--gr);font-weight:700;font-size:12px">✓ OK</div>`
             : `<div style="color:var(--mu);font-size:11px">sem fat.</div>`
         }
-        ${temLoc ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${c.lat||'null'},${c.lng||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : ''}
+        ${temLoc ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${parseFloat(c.lat)||'null'},${parseFloat(c.lng)||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -1646,11 +1722,9 @@ function verCliente(nome) {
   const cli = DB_CLIENTES.find(c => c.nome === nome || c.denom === nome);
   const nomeMostrar = (cli && cli.denom) ? cli.denom : nome;
 
-  // Faturas do cliente — match por nome E por denom
-  const fatsCli = FATURAS.filter(f =>
-    f.nome === nome || f.nome === nomeMostrar ||
-    (cli && cli.denom && (f.nome === cli.denom || f.nome === cli.nome))
-  );
+  // Faturas do cliente — matching normalizado
+  const fatsCli = FATURAS.filter(f => faturaDoCliente(f, cli) ||
+    nn(f.nome) === nn(nome) || nn(f.nome) === nn(nomeMostrar));
 
   // Para comercial: pendente só das suas faturas; admin vê tudo
   const fatsParaTotal = (!IS_ADMIN && COMERCIAL_ATUAL)
@@ -1662,13 +1736,13 @@ function verCliente(nome) {
   const pend  = total - pagas;
 
   const morada = cli ? [cli.rua, cli.localidade].filter(Boolean).join(', ') : '';
-  const temLoc = cli && (cli.lat || cli.rua || cli.localidade);
+  const temLoc = cli && (parseFloat(cli.lat) || cli.rua || cli.localidade);
 
   document.getElementById('mCliTit').textContent = nomeMostrar;
   document.getElementById('mCliBody').innerHTML = `
     ${temLoc ? `<div style="display:flex;align-items:center;gap:10px;background:#eef2f7;border-radius:12px;padding:10px 12px;margin-bottom:12px">
       <div style="flex:1;font-size:12px;color:var(--mu)">📍 ${esc(morada||'Coordenadas disponíveis')}</div>
-      <button class="btnIr" onclick="irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${morada.replace(/'/g,"\\'")}')">
+      <button class="btnIr" onclick="irParaCliente(${parseFloat(cli.lat)||'null'},${parseFloat(cli.lng)||'null'},'${morada.replace(/'/g,"\\'")}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
         INICIAR VIAGEM
       </button>
@@ -1679,7 +1753,7 @@ function verCliente(nome) {
     </div>
     ${fatsCli.length ? fatsCli.map(f => {
       const isNC = f.tipo === 'NC';
-      const btnIr2 = (!f.pago && temLoc && !isNC) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${cli.lat||'null'},${cli.lng||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
+      const btnIr2 = (!f.pago && temLoc && !isNC) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${parseFloat(cli.lat)||'null'},${parseFloat(cli.lng)||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
       return `<div class="fatRow">
         <div class="fatBadge ${{FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo]||'nd'}">${f.tipo}</div>
         <div class="fatInfo">
@@ -1712,27 +1786,31 @@ function renderRelatorio() {
     ? [...FATURAS]
     : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
 
-  // Todos os docs do período (por data de receção)
+  // Todos os docs do período (por data de emissão da fatura)
+  // Se f.data estiver vazio, usa criadoEm como fallback
   lista = lista.filter(f => {
-    const dataRec = f.criadoEm ? f.criadoEm.substring(0,10) : (f.data||'').substring(0,10);
-    return dataRec >= de && dataRec <= ate;
+    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
+    return dataRef >= de && dataRef <= ate;
   });
+
+
 
   // Ordenar mais recente → mais antigo
   lista.sort((a,b) => {
-    const da = b.criadoEm||b.data||'';
-    const db2 = a.criadoEm||a.data||'';
+    const da = b.data||b.criadoEm||'';
+    const db2 = a.data||a.criadoEm||'';
     return da > db2 ? 1 : da < db2 ? -1 : 0;
   });
 
   // ── Separar: hoje vs anteriores ──
+  // "Hoje" = data de emissão da fatura é hoje; "Anteriores" = data de emissão anterior a hoje
   const listaHoje = lista.filter(f => {
-    const dataRec = f.criadoEm ? f.criadoEm.substring(0,10) : (f.data||'').substring(0,10);
-    return dataRec === HOJE;
+    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
+    return dataRef === HOJE;
   });
   const listaAnt = lista.filter(f => {
-    const dataRec = f.criadoEm ? f.criadoEm.substring(0,10) : (f.data||'').substring(0,10);
-    return dataRec !== HOJE;
+    const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
+    return dataRef !== HOJE;
   });
 
   // Totais gerais
@@ -1817,7 +1895,7 @@ function renderRelatorio() {
     const diasMap = {};
     const diasOrdem = [];
     grpLista.forEach(f => {
-      const dia = f.criadoEm ? f.criadoEm.substring(0,10) : (f.data||'').substring(0,10);
+      const dia = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
       if(!diasMap[dia]) { diasMap[dia]=[]; diasOrdem.push(dia); }
       diasMap[dia].push(f);
     });
@@ -2243,6 +2321,116 @@ function irParaCliente(lat, lng, morada) {
     return;
   }
   window.open(url, '_blank');
+}
+
+// ── CRIAR / EDITAR CLIENTES ────────────────────────────────────────
+function abrirNovoCliente() {
+  document.getElementById('mCliEditTit').textContent = 'Novo Cliente';
+  document.getElementById('mCliEditId').value = '';
+  ['mCliEditNif','mCliEditDenom','mCliEditNome','mCliEditTel',
+   'mCliEditRua','mCliEditLocalidade','mCliEditLat','mCliEditLng'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('mCliEditGpsStatus').textContent = '';
+  document.getElementById('mCliEditApagarWrap').style.display = 'none';
+  document.getElementById('mCliEdit').classList.add('a');
+}
+
+function editarCliente(nome) {
+  const c = DB_CLIENTES.find(x => x.nome === nome || x.denom === nome);
+  if(!c) return;
+  document.getElementById('mCliEditTit').textContent = 'Editar Cliente';
+  document.getElementById('mCliEditId').value = c.id;
+  document.getElementById('mCliEditNif').value = c.nif || '';
+  document.getElementById('mCliEditDenom').value = c.denom || '';
+  document.getElementById('mCliEditNome').value = c.nome || '';
+  document.getElementById('mCliEditTel').value = c.tel || '';
+  document.getElementById('mCliEditRua').value = c.rua || '';
+  document.getElementById('mCliEditLocalidade').value = c.localidade || '';
+  document.getElementById('mCliEditLat').value = c.lat || '';
+  document.getElementById('mCliEditLng').value = c.lng || '';
+  document.getElementById('mCliEditGpsStatus').textContent = (c.lat && c.lng)
+    ? '✅ ' + parseFloat(c.lat).toFixed(6) + ', ' + parseFloat(c.lng).toFixed(6) : '';
+  document.getElementById('mCliEditApagarWrap').style.display = 'block';
+  document.getElementById('mCliEdit').classList.add('a');
+}
+
+async function guardarClienteEdit() {
+  const id  = document.getElementById('mCliEditId').value;
+  const lat = document.getElementById('mCliEditLat').value;
+  const lng = document.getElementById('mCliEditLng').value;
+  const d = {
+    nif:        document.getElementById('mCliEditNif').value.trim() || null,
+    denom:      document.getElementById('mCliEditDenom').value.trim() || null,
+    nome:       document.getElementById('mCliEditNome').value.trim(),
+    tel:        document.getElementById('mCliEditTel').value.trim(),
+    rua:        document.getElementById('mCliEditRua').value.trim() || null,
+    localidade: document.getElementById('mCliEditLocalidade').value.trim() || null,
+    lat:        lat ? parseFloat(lat) : null,
+    lng:        lng ? parseFloat(lng) : null,
+  };
+  if(!d.nome) return toast('⚠️ Nome obrigatório');
+  try {
+    if(!id) {
+      // Novo cliente
+      const { error } = await db.from('clientes').insert({ ...d, pts: 0, historico: [] });
+      if(error) throw error;
+      toast('✅ Cliente criado');
+    } else {
+      const { error } = await db.from('clientes').update(d).eq('id', id);
+      if(error) throw error;
+      toast('✅ Cliente guardado');
+    }
+    fecharModal('mCliEdit');
+    // Recarregar clientes e re-render
+    const { data } = await db.from('clientes').select('*').order('nome', { ascending: true });
+    if(data) {
+      DB_CLIENTES = data;
+      localStorage.setItem('cache_clientes', JSON.stringify(DB_CLIENTES));
+    }
+    renderClientes();
+    renderFaturas();
+  } catch(e) {
+    toast('❌ Erro: ' + e.message);
+  }
+}
+
+async function apagarClienteEdit() {
+  const id = document.getElementById('mCliEditId').value;
+  if(!id || !confirm('Apagar este cliente permanentemente?')) return;
+  try {
+    const { error } = await db.from('clientes').delete().eq('id', id);
+    if(error) throw error;
+    fecharModal('mCliEdit');
+    DB_CLIENTES = DB_CLIENTES.filter(c => c.id !== id);
+    localStorage.setItem('cache_clientes', JSON.stringify(DB_CLIENTES));
+    renderClientes();
+    toast('🗑️ Cliente apagado');
+  } catch(e) {
+    toast('❌ Erro: ' + e.message);
+  }
+}
+
+function gpsParaCliente() {
+  const status = document.getElementById('mCliEditGpsStatus');
+  if(!navigator.geolocation) { status.textContent = '❌ GPS não disponível'; return; }
+  status.textContent = '📡 A obter localização...';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      document.getElementById('mCliEditLat').value = lat;
+      document.getElementById('mCliEditLng').value = lng;
+      status.textContent = '✅ ' + lat + ', ' + lng;
+      status.style.color = 'var(--gr)';
+    },
+    err => {
+      const msgs = { 1:'Permissão negada', 2:'Posição indisponível', 3:'Tempo esgotado' };
+      status.textContent = '❌ ' + (msgs[err.code] || 'Erro GPS');
+      status.style.color = 'var(--r)';
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
 }
 
 function toast(msg) {
