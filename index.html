@@ -815,7 +815,7 @@ function fazerBipe(tipo) {
 // ═══════════════════════════════════════════
 // ESTADO
 // ═══════════════════════════════════════════
-const HOJE = new Date().toISOString().split('T')[0];
+const _hj = new Date(); const HOJE = `${_hj.getFullYear()}-${String(_hj.getMonth()+1).padStart(2,'0')}-${String(_hj.getDate()).padStart(2,'0')}`;
 let DB_CLIENTES = [];
 let FATURAS = []; // carregadas do Supabase
 let FILTRO_FAT = 0;
@@ -1786,12 +1786,24 @@ function renderRelatorio() {
     ? [...FATURAS]
     : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
 
+  // ── DIAGNÓSTICO ──
+  console.log('🔍 renderRelatorio | de:', de, '| ate:', ate, '| FATURAS total:', FATURAS.length, '| lista após filtro comercial:', lista.length);
+  if(lista.length > 0) {
+    const exemplo = lista[0];
+    console.log('🔍 Exemplo fatura[0]:', JSON.stringify({ id: exemplo.id, data: exemplo.data, criadoEm: exemplo.criadoEm, nome: exemplo.nome }));
+    console.log('🔍 data substring:', (exemplo.data||'').substring(0,10), '| criadoEm substring:', (exemplo.criadoEm||'').substring(0,10));
+  }
+
   // Todos os docs do período (por data de emissão da fatura)
   // Se f.data estiver vazio, usa criadoEm como fallback
   lista = lista.filter(f => {
     const dataRef = ((f.data||'').substring(0,10)) || ((f.criadoEm||'').substring(0,10));
-    return dataRef >= de && dataRef <= ate;
+    const passa = dataRef >= de && dataRef <= ate;
+    if(!passa && lista.length <= 5) console.log('🔍 Excluído:', f.nome, '| dataRef:', dataRef, '| de:', de, '| ate:', ate);
+    return passa;
   });
+
+  console.log('🔍 lista após filtro período:', lista.length);
 
   // Ordenar mais recente → mais antigo
   lista.sort((a,b) => {
