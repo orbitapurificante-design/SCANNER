@@ -360,10 +360,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 
       <!-- Filtros rápidos -->
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="filtBtn a" id="fb0" onclick="setFiltro(0)">Todas</button>
+        <button class="filtBtn" id="fb0" onclick="setFiltro(0)">Todas</button>
         <button class="filtBtn" id="fb1" onclick="setFiltro(1)">✓ Pagas</button>
         <button class="filtBtn" id="fb2" onclick="setFiltro(2)">⏳ Pendentes</button>
-        <button class="filtBtn" id="fb3" onclick="setFiltro(3)">Hoje</button>
+        <button class="filtBtn a" id="fb3" onclick="setFiltro(3)">Hoje</button>
       </div>
 
       <div class="card">
@@ -818,7 +818,7 @@ function fazerBipe(tipo) {
 const _hj = new Date(); const HOJE = `${_hj.getFullYear()}-${String(_hj.getMonth()+1).padStart(2,'0')}-${String(_hj.getDate()).padStart(2,'0')}`;
 let DB_CLIENTES = [];
 let FATURAS = []; // carregadas do Supabase
-let FILTRO_FAT = 0;
+let FILTRO_FAT = 3;
 let _camAtiva = false;
 let _scanInterval = null;
 let _pagoForm = false;
@@ -1180,6 +1180,9 @@ function adicionarCSS() {
 function ir(i) {
   document.querySelectorAll('.ecra').forEach((e,j) => e.classList.toggle('a', j===i));
   document.querySelectorAll('.nBtn').forEach((b,j) => b.classList.toggle('a', j===i));
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
   if(i !== 0 && _camAtiva) pararCam();
   // Ao abrir aba Clientes: re-sincronizar clientes do Supabase silenciosamente
   if(i === 2 || i === 1) {
@@ -1204,6 +1207,10 @@ function fecharModal(id) {
 async function toggleCam() {
   if(_camAtiva) { pararCam(); return; }
 
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+
   const vid = document.getElementById('qrVid');
   const wrap = document.getElementById('cWrap');
   const btn = document.getElementById('btnCam');
@@ -1221,6 +1228,9 @@ async function toggleCam() {
     vid.srcObject = stream;
     await vid.play();
     wrap.classList.add('a');
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
     btn.textContent = '⏹ PARAR CÂMARA';
     status.textContent = 'A ler QR Code...';
     status.className = 'qrStatus';
@@ -1446,7 +1456,7 @@ function limparForm() {
   document.getElementById('nifMatch').style.display = 'none';
   const fCol = document.getElementById('fColaborador');
   if(fCol) {
-    fCol.value = IS_ADMIN ? '' : (COMERCIAL_ATUAL || '');
+    fCol.value = IS_ADMIN ? (COMERCIAL_ATUAL || 'admin') : (COMERCIAL_ATUAL || '');
     fCol.disabled = !IS_ADMIN;
   }
   const st = document.getElementById('qrStatus');
