@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Controlo de Saúde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e7e5e2; --bg2:#f4f2ef; --bg3:#dcd8d3;
+    --gold:#a9782e; --gold-soft:#8f6527; --oxblood:#8a2c3d;
+    --ivory:#2b2420; --ivory-dim:#6b6058; --line:rgba(43,36,32,.16);
+    --ok:#3f8a5f; --warn:#c9860a; --bad:#c0392b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ivory);font-family:'Jost',sans-serif}
+  ::selection{background:var(--gold);color:#fff}
+
+  /* HEADER */
+  header{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line);
+    padding:14px 16px 0;box-shadow:0 4px 16px rgba(0,0,0,.08)}
+  .hRow{display:flex;align-items:center;justify-content:center;position:relative;padding-bottom:10px}
+  .hBrand{display:flex;align-items:center;gap:8px}
+  .hIcon{width:32px;height:32px;border-radius:9px;background:var(--oxblood);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .hTit{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:19px;letter-spacing:.5px}
+  .hSub{text-align:center;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);
+    font-weight:500;padding-bottom:10px}
+  .settingsBtn{position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;
+    border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;
+    justify-content:center;cursor:pointer;color:var(--ivory)}
+
+  /* TABS */
+  .tabs{display:flex;justify-content:center;gap:4px;max-width:520px;margin:0 auto;position:relative}
+  .tab{flex:1;text-align:center;padding:8px 6px 10px;font-size:11.5px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--ivory-dim);cursor:pointer;font-weight:600;transition:color .2s;user-select:none;white-space:nowrap}
+  .tab.on{color:var(--gold)}
+  .tabInd{position:absolute;bottom:0;height:2px;background:var(--gold);transition:left .3s,width .3s}
+
+  .wrap{max-width:640px;margin:0 auto;padding:16px 14px 60px}
+  .ecra{display:none}
+  .ecra.a{display:block}
+
+  /* CARDS / FORM */
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px}
+  .ct{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;margin-bottom:12px}
+  .lbl{display:block;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ivory-dim);margin:10px 0 6px}
+  .lbl:first-child{margin-top:0}
+  .inp,.sel,.txt{width:100%;padding:11px 13px;background:var(--bg3);border:1px solid var(--line);border-radius:10px;
+    color:var(--ivory);font-size:14px;outline:none;font-family:'Jost',sans-serif}
+  .txt{resize:vertical;min-height:60px}
+  .inp::placeholder,.txt::placeholder{color:#918578}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .btnGold{width:100%;padding:13px 0;margin-top:14px;border:none;border-radius:11px;background:var(--gold);
+    color:#fff;font-weight:700;font-size:12.5px;letter-spacing:1.2px;text-transform:uppercase;cursor:pointer;
+    font-family:'Jost',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btnGhost{width:100%;padding:11px 0;margin-top:8px;border:1px solid var(--line);border-radius:11px;background:none;
+    color:var(--ivory-dim);font-size:11.5px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:'Jost',sans-serif}
+  .btnDanger{background:var(--bad);color:#fff;border:none}
+  .btnSmall{padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--ivory);
+    font-size:11px;letter-spacing:.5px;cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap}
+
+  /* TENSÃO — lista e badges */
+  .tRow{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);
+    border-radius:14px;padding:12px 14px;margin-bottom:10px}
+  .tVals{flex:1}
+  .tMain{font-size:17px;font-weight:700}
+  .tMeta{font-size:11px;color:var(--ivory-dim);margin-top:2px}
+  .badge{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:4px 9px;
+    border-radius:20px;white-space:nowrap}
+  .badge.ok{background:rgba(63,138,95,.15);color:var(--ok)}
+  .badge.warn{background:rgba(201,134,10,.15);color:var(--warn)}
+  .badge.bad{background:rgba(192,57,43,.15);color:var(--bad)}
+  .delBtn{background:none;border:none;color:var(--ivory-dim);font-size:16px;cursor:pointer;flex-shrink:0}
+
+  .empty{text-align:center;padding:40px 20px;color:var(--ivory-dim);font-size:13px}
+
+  /* GRÁFICO */
+  .chartWrap{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:16px}
+  .chartLegend{display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:10.5px;color:var(--ivory-dim)}
+  .chartLegend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+  /* MEDICAÇÃO — grid produtos */
+  .pGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pCard{background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;position:relative}
+  .pCard.off{opacity:.45}
+  .pImg{width:100%;aspect-ratio:1/1;background:var(--bg3);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .pImg img{width:100%;height:100%;object-fit:cover}
+  .pBody{padding:9px 10px 11px}
+  .pNome{font-size:12.5px;font-weight:600;line-height:1.3;min-height:32px}
+  .catTag{font-size:8.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gold);margin-top:3px;display:block}
+  .pHoras{font-size:10px;color:var(--ivory-dim);margin-top:4px}
+  .offBadge{position:absolute;top:7px;right:7px;background:rgba(43,36,32,.75);color:#fff;font-size:8px;
+    letter-spacing:.5px;text-transform:uppercase;padding:3px 7px;border-radius:20px}
+
+  .addFab{width:100%;padding:13px 0;margin-bottom:16px;border:none;border-radius:12px;background:var(--gold);
+    color:#fff;font-weight:700;font-size:12.5px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:'Jost',sans-serif}
+
+  .fotoBox{width:100%;aspect-ratio:1/1;max-width:200px;margin:0 auto 4px;background:var(--bg3);border:1px dashed var(--line);
+    border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+  .fotoBox img{width:100%;height:100%;object-fit:cover}
+  .fotoBox .fp{font-size:11px;color:var(--ivory-dim);text-align:center;padding:10px}
+
+  .chipsRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--line);
+    border-radius:20px;padding:6px 8px 6px 12px;font-size:12.5px;font-weight:600}
+  .chip button{background:none;border:none;color:var(--oxblood);font-size:14px;cursor:pointer;line-height:1;padding:0}
+  .addChipBtn{background:none;border:1px dashed var(--line);border-radius:20px;padding:6px 14px;font-size:11.5px;
+    color:var(--ivory-dim);cursor:pointer;font-family:'Jost',sans-serif}
+
+  .diasRow{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+  .diaBtn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--bg3);
+    color:var(--ivory-dim);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .diaBtn.on{background:var(--gold);color:#fff;border-color:var(--gold)}
+
+  .checkRow{display:flex;align-items:center;gap:10px;margin-top:14px}
+  .checkRow input{width:18px;height:18px;accent-color:var(--gold)}
+  .checkRow label{font-size:12.5px;color:var(--ivory-dim)}
+
+  /* RESUMO DIÁRIO */
+  .dateNav{display:flex;align-items:center;justify-content:space-between;background:var(--bg2);
+    border:1px solid var(--line);border-radius:14px;padding:10px 8px;margin-bottom:16px}
+  .dateNav button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--bg3);
+    color:var(--ivory);font-size:16px;cursor:pointer}
+  .dateLbl{text-align:center;flex:1}
+  .dateLbl b{font-size:14.5px;display:block}
+  .dateLbl small{font-size:10.5px;color:var(--ivory-dim);text-transform:capitalize}
+
+  .progWrap{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:16px}
+  .progTop{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ivory-dim);margin-bottom:8px}
+  .progBar{height:8px;background:var(--bg3);border-radius:20px;overflow:hidden}
+  .progFill{height:100%;background:var(--gold);border-radius:20px;transition:width .3s}
+
+  .doseRow{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);
+    border-left:4px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px}
+  .doseRow.atrasado{border-left-color:var(--bad)}
+  .doseRow.feito{opacity:.55}
+  .doseImg{width:42px;height:42px;border-radius:10px;background:var(--bg3);object-fit:cover;flex-shrink:0}
+  .doseInfo{flex:1;min-width:0}
+  .doseNome{font-size:13px;font-weight:600}
+  .doseMeta{font-size:10.5px;color:var(--ivory-dim);margin-top:2px}
+  .doseCheck{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg3);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:16px;color:var(--ivory-dim)}
+  .doseCheck.on{background:var(--ok);border-color:var(--ok);color:#fff}
+
+  .bpMiniCard{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;
+    display:flex;align-items:center;justify-content:space-between}
+
+  /* MODAL */
+  .modal{display:none;position:fixed;inset:0;z-index:200;align-items:flex-end;background:rgba(20,15,13,.5)}
+  .modal.a{display:flex}
+  .sheet{background:var(--bg2);border-radius:20px 20px 0 0;width:100%;max-width:600px;margin:0 auto;padding:20px;
+    max-height:92vh;overflow-y:auto;border-top:1px solid var(--line)}
+  .sheetTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .sheetTit{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600}
+  .closeX{background:none;border:none;color:var(--ivory-dim);font-size:26px;cursor:pointer;line-height:1}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#211915;
+    color:#f3ead9;padding:12px 20px;border-radius:12px;font-size:13px;z-index:999;opacity:0;
+    transition:all .3s;pointer-events:none;max-width:88vw;text-align:center}
+  .toast.v{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* IMPRESSÃO */
+  .printOnly{display:none}
+  @media print{
+    header, .tabs, .addFab, .btnGold, .btnGhost, .settingsBtn, .noPrint{display:none !important}
+    body{background:#fff;color:#000}
+    .wrap{max-width:100%;padding:0}
+    .printOnly{display:block}
+    .card,.tRow,.chartWrap{border:1px solid #999;background:#fff}
+  }
+  @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hRow">
+    <div class="hBrand">
+      <div class="hIcon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      </div>
+      <div class="hTit">Controlo de Saúde</div>
+    </div>
+    <button class="settingsBtn noPrint" onclick="abrirDefinicoes()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 005 15a1.65 1.65 0 00-1.51-1H3.5a2 2 0 010-4h.09A1.65 1.65 0 005 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 5c.13 0 .26 0 .38 0A1.65 1.65 0 0011 3.5V3a2 2 0 014 0v.09c0 .69.4 1.31 1 1.51.13.05.26.09.38.09a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c0 .13 0 .26.09.38.2.6.82 1 1.51 1H21a2 2 0 010 4h-.09c-.69 0-1.31.4-1.51 1z"/></svg>
+    </button>
+  </div>
+  <div class="hSub">Tensão Arterial &amp; Medicação</div>
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-t="tensao">Tensão</div>
+    <div class="tab" data-t="medicacao">Medicação</div>
+    <div class="tab" data-t="resumo">Resumo Diário</div>
+    <div class="tabInd" id="tabInd"></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ═══ ECRÃ TENSÃO ═══ -->
+  <div class="ecra a" id="ecraTensao">
+    <div class="card noPrint">
+      <div class="ct">Novo Registo</div>
+      <div class="row2">
+        <div><label class="lbl">Data</label><input type="date" class="inp" id="tData"></div>
+        <div><label class="lbl">Hora</label><input type="time" class="inp" id="tHora"></div>
+      </div>
+      <div class="row3">
+        <div><label class="lbl">Sistólica</label><input type="number" class="inp" id="tSis" placeholder="120"></div>
+        <div><label class="lbl">Diastólica</label><input type="number" class="inp" id="tDia" placeholder="80"></div>
+        <div><label class="lbl">Batimentos</label><input type="number" class="inp" id="tBpm" placeholder="70"></div>
+      </div>
+      <label class="lbl">Notas (opcional)</label>
+      <input type="text" class="inp" id="tNotas" placeholder="Ex: em jejum, após caminhada...">
+      <button class="btnGold" onclick="addTensao()">+ REGISTAR TENSÃO</button>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px" class="noPrint">
+      <select class="sel" id="tFiltro" style="width:auto;flex:1" onchange="renderTensao()">
+        <option value="30">Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="9999">Tudo</option>
+      </select>
+      <button class="btnSmall" onclick="window.print()">🖨️ Imprimir</button>
+    </div>
+
+    <div class="printOnly" style="margin-bottom:14px">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600">Registo de Tensão Arterial</div>
+      <div style="font-size:11px;color:#555">Impresso em <span id="printData"></span></div>
+    </div>
+
+    <div class="chartWrap" id="chartWrap"></div>
+
+    <div id="tensaoLista"></div>
+  </div>
+
+  <!-- ═══ ECRÃ MEDICAÇÃO ═══ -->
+  <div class="ecra" id="ecraMedicacao">
+    <button class="addFab" onclick="abrirNovoProduto()">+ NOVO MEDICAMENTO / SUPLEMENTO</button>
+    <div class="pGrid" id="produtosGrid"></div>
+    <div class="empty" id="produtosEmpty" style="display:none">Ainda não adicionaste nenhum produto.</div>
+  </div>
+
+  <!-- ═══ ECRÃ RESUMO DIÁRIO ═══ -->
+  <div class="ecra" id="ecraResumo">
+    <div class="dateNav">
+      <button onclick="mudarDia(-1)">‹</button>
+      <div class="dateLbl">
+        <b id="resumoDataTit">Hoje</b>
+        <small id="resumoDataSub"></small>
+      </div>
+      <button onclick="mudarDia(1)">›</button>
+    </div>
+
+    <div id="resumoBP"></div>
+
+    <div class="progWrap">
+      <div class="progTop"><span>Tomas do dia</span><span id="progTxt">0 / 0</span></div>
+      <div class="progBar"><div class="progFill" id="progFill" style="width:0%"></div></div>
+    </div>
+
+    <div id="resumoLista"></div>
+    <div class="empty" id="resumoEmpty" style="display:none">Sem medicação agendada para este dia.</div>
+  </div>
+
+</div>
+
+<!-- MODAL PRODUTO -->
+<div class="modal" id="mProduto">
+  <div class="sheet">
+    <div class="sheetTop">
+      <div class="sheetTit" id="mProdutoTit">Novo Produto</div>
+      <button class="closeX" onclick="fecharModal('mProduto')">×</button>
+    </div>
+
+    <div class="fotoBox" onclick="document.getElementById('fFotoProduto').click()" id="fotoPreview">
+      <div class="fp">📷<br>Foto do produto</div>
+    </div>
+    <input type="file" id="fFotoProduto" accept="image/*" hidden onchange="prevFotoProduto(event)">
+
+    <label class="lbl">Nome</label>
+    <input type="text" class="inp" id="pNome" placeholder="Ex: Losartan 50mg">
+
+    <label class="lbl">Categoria</label>
+    <select class="sel" id="pCategoria">
+      <option value="medicamento">Medicamento</option>
+      <option value="suplemento">Suplemento</option>
+      <option value="vitamina">Vitamina</option>
+    </select>
+
+    <label class="lbl">Para que serve</label>
+    <textarea class="txt" id="pParaQueServe" placeholder="Ex: Controlo da tensão arterial"></textarea>
+
+    <label class="lbl">Horários de toma</label>
+    <div class="chipsRow" id="horariosChips"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <input type="time" class="inp" id="novoHorarioInput" style="width:auto;flex:1">
+      <button class="addChipBtn" onclick="adicionarHorario()">+ Adicionar</button>
+    </div>
+
+    <label class="lbl">Dias da semana</label>
+    <div class="diasRow" id="diasRow"></div>
+
+    <div class="checkRow">
+      <input type="checkbox" id="pAtivo" checked>
+      <label for="pAtivo">Ativo (aparece no Resumo Diário)</label>
+    </div>
+
+    <button class="btnGold" onclick="guardarProduto()">GUARDAR</button>
+    <button class="btnGhost btnDanger" id="btnApagarProduto" style="display:none" onclick="apagarProduto()">APAGAR PRODUTO</button>
+  </div>
+</div>
+
+<!-- MODAL DEFINIÇÕES / BACKUP -->
+<div class="modal" id="mDefinicoes">
+  <div class="sheet">
+    <div class="sheetTop">
+      <div class="sheetTit">Definições</div>
+      <button class="closeX" onclick="fecharModal('mDefinicoes')">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--ivory-dim);line-height:1.6">
+      Os teus dados ficam guardados apenas <b>neste dispositivo/navegador</b>. Se limpares os dados do navegador,
+      desinstalares a app ou trocares de telemóvel, os registos podem perder-se — por isso é importante fazeres
+      uma cópia de segurança de vez em quando.
+    </p>
+    <button class="btnGold" onclick="exportarDados()">⬇️ EXPORTAR CÓPIA DE SEGURANÇA</button>
+    <label class="btnGhost" style="display:block;text-align:center;cursor:pointer">
+      ⬆️ IMPORTAR CÓPIA DE SEGURANÇA
+      <input type="file" accept="application/json" style="display:none" onchange="importarDados(event)">
+    </label>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// PERSISTÊNCIA (localStorage — só neste dispositivo)
+// ══════════════════════════════════════════
+const LS_TENSOES = 'saude_tensoes';
+const LS_PRODUTOS = 'saude_produtos';
+const LS_TOMAS = 'saude_tomas';
+const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+function getTensoes(){ try{ return JSON.parse(localStorage.getItem(LS_TENSOES)) || []; }catch(e){ return []; } }
+function saveTensoes(a){ localStorage.setItem(LS_TENSOES, JSON.stringify(a)); }
+function getProdutos(){ try{ return JSON.parse(localStorage.getItem(LS_PRODUTOS)) || []; }catch(e){ return []; } }
+function saveProdutos(a){ localStorage.setItem(LS_PRODUTOS, JSON.stringify(a)); }
+function getTomas(){ try{ return JSON.parse(localStorage.getItem(LS_TOMAS)) || []; }catch(e){ return []; } }
+function saveTomas(a){ localStorage.setItem(LS_TOMAS, JSON.stringify(a)); }
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('v');
+  clearTimeout(window._toastT);
+  window._toastT = setTimeout(()=> t.classList.remove('v'), 2600);
+}
+
+function fecharModal(id){ document.getElementById(id).classList.remove('a'); }
+
+function hojeStr(){ return new Date().toISOString().slice(0,10); }
+function horaAgora(){ var d = new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function fd(dataStr){
+  if(!dataStr) return '';
+  var p = dataStr.split('-');
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+
+// ── NAVEGAÇÃO DE ABAS ──
+var ABA_ATUAL = 'tensao';
+document.getElementById('tabs').addEventListener('click', function(e){
+  var t = e.target.closest('.tab');
+  if(!t) return;
+  ir(t.dataset.t, t);
+});
+function ir(tab, el){
+  ABA_ATUAL = tab;
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.ecra').forEach(x => x.classList.remove('a'));
+  (el || document.querySelector('.tab[data-t="'+tab+'"]')).classList.add('on');
+  document.getElementById('ecra' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('a');
+  posicionarIndicador(document.querySelector('.tab.on'));
+  if(tab === 'medicacao') renderProdutos();
+  if(tab === 'resumo') renderResumo();
+  if(tab === 'tensao') renderTensao();
+}
+function posicionarIndicador(el){
+  if(!el) return;
+  var ind = document.getElementById('tabInd');
+  ind.style.left = el.offsetLeft + 'px';
+  ind.style.width = el.offsetWidth + 'px';
+}
+window.addEventListener('resize', function(){ posicionarIndicador(document.querySelector('.tab.on')); });
+
+// ══════════════════════════════════════════
+// TENSÃO ARTERIAL
+// ══════════════════════════════════════════
+function classificarTensao(sis, dia){
+  if(sis >= 180 || dia >= 120) return {label:'Crise Hipertensiva', cor:'bad'};
+  if(sis >= 140 || dia >= 90) return {label:'Hipertensão Estágio 2', cor:'bad'};
+  if(sis >= 130 || dia >= 80) return {label:'Hipertensão Estágio 1', cor:'warn'};
+  if(sis >= 120) return {label:'Elevada', cor:'warn'};
+  return {label:'Normal', cor:'ok'};
+}
+
+function addTensao(){
+  var data = document.getElementById('tData').value || hojeStr();
+  var hora = document.getElementById('tHora').value || horaAgora();
+  var sis = parseInt(document.getElementById('tSis').value);
+  var dia = parseInt(document.getElementById('tDia').value);
+  var bpm = parseInt(document.getElementById('tBpm').value) || null;
+  var notas = document.getElementById('tNotas').value.trim();
+
+  if(!sis || !dia){ toast('⚠️ Indica pelo menos a sistólica e a diastólica'); return; }
+
+  var lista = getTensoes();
+  lista.push({ id: uid(), data: data, hora: hora, sis: sis, dia: dia, bpm: bpm, notas: notas });
+  saveTensoes(lista);
+
+  document.getElementById('tSis').value = '';
+  document.getElementById('tDia').value = '';
+  document.getElementById('tBpm').value = '';
+  document.getElementById('tNotas').value = '';
+
+  toast('✅ Registo guardado');
+  renderTensao();
+}
+
+function delTensao(id){
+  if(!confirm('Apagar este registo?')) return;
+  saveTensoes(getTensoes().filter(x => x.id !== id));
+  renderTensao();
+}
+
+function tensoesFiltradas(){
+  var dias = parseInt(document.getElementById('tFiltro').value) || 9999;
+  var limite = Date.now() - dias * 86400000;
+  return getTensoes()
+    .filter(x => new Date(x.data + 'T' + (x.hora||'00:00')).getTime() >= limite)
+    .sort(function(a,b){ return (b.data+b.hora).localeCompare(a.data+a.hora); });
+}
+
+function renderTensao(){
+  var lista = tensoesFiltradas();
+  var el = document.getElementById('tensaoLista');
+  document.getElementById('printData').textContent = new Date().toLocaleDateString('pt-PT');
+
+  if(!lista.length){
+    el.innerHTML = '<div class="empty">Ainda não há registos de tensão nesta janela de tempo.</div>';
+    document.getElementById('chartWrap').innerHTML = '';
+    return;
+  }
+
+  el.innerHTML = lista.map(function(t){
+    var c = classificarTensao(t.sis, t.dia);
+    return '<div class="tRow">' +
+      '<div class="tVals">' +
+        '<div class="tMain">' + t.sis + '/' + t.dia + ' <span style="font-size:11px;font-weight:400;color:var(--ivory-dim)">mmHg</span>' + (t.bpm ? ' · ' + t.bpm + ' bpm' : '') + '</div>' +
+        '<div class="tMeta">' + fd(t.data) + ' às ' + t.hora + (t.notas ? ' · ' + t.notas : '') + '</div>' +
+      '</div>' +
+      '<span class="badge ' + c.cor + '">' + c.label + '</span>' +
+      '<button class="delBtn noPrint" onclick="delTensao(\'' + t.id + '\')">🗑️</button>' +
+    '</div>';
+  }).join('');
+
+  renderChart(lista.slice(0, 14).reverse());
+}
+
+function renderChart(pontos){
+  var wrap = document.getElementById('chartWrap');
+  if(!pontos.length){ wrap.innerHTML = ''; return; }
+  if(pontos.length < 2){
+    wrap.innerHTML = '<div style="text-align:center;font-size:11.5px;color:var(--ivory-dim);padding:10px 0">Adiciona mais registos para veres a tendência aqui.</div>';
+    return;
+  }
+
+  var W = 600, H = 160, padL = 30, padR = 10, padT = 14, padB = 22;
+  var maxV = Math.max.apply(null, pontos.map(p => Math.max(p.sis, p.dia))) + 10;
+  var minV = Math.min.apply(null, pontos.map(p => Math.min(p.sis, p.dia))) - 10;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+
+  function x(i){ return padL + (pontos.length === 1 ? innerW/2 : (i/(pontos.length-1)) * innerW); }
+  function y(v){ return padT + innerH - ((v - minV) / (maxV - minV)) * innerH; }
+
+  function linha(campo, cor){
+    var d = pontos.map(function(p,i){ return (i===0?'M':'L') + x(i).toFixed(1) + ',' + y(p[campo]).toFixed(1); }).join(' ');
+    var pts = pontos.map(function(p,i){ return '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p[campo]).toFixed(1)+'" r="3" fill="'+cor+'"/>'; }).join('');
+    return '<path d="'+d+'" fill="none" stroke="'+cor+'" stroke-width="2"/>' + pts;
+  }
+
+  var gridY = [];
+  for(var g=0; g<=2; g++){
+    var v = minV + (maxV-minV) * (g/2);
+    gridY.push('<line x1="'+padL+'" y1="'+y(v).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>');
+    gridY.push('<text x="2" y="'+(y(v)+3).toFixed(1)+'" font-size="9" fill="#6b6058">'+Math.round(v)+'</text>');
+  }
+
+  var labelsX = pontos.map(function(p,i){
+    if(pontos.length > 6 && i % Math.ceil(pontos.length/6) !== 0) return '';
+    return '<text x="'+x(i).toFixed(1)+'" y="'+(H-4)+'" font-size="8.5" fill="#6b6058" text-anchor="middle">'+fd(p.data).slice(0,5)+'</text>';
+  }).join('');
+
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">' +
+    gridY.join('') + linha('sis','#a9782e') + linha('dia','#8a2c3d') + labelsX +
+  '</svg>';
+
+  wrap.innerHTML = svg + '<div class="chartLegend"><span><i class="dot" style="background:#a9782e"></i>Sistólica</span><span><i class="dot" style="background:#8a2c3d"></i>Diastólica</span></div>';
+}
+
+// ══════════════════════════════════════════
+// MEDICAÇÃO / PRODUTOS
+// ══════════════════════════════════════════
+var editandoProdutoId = null;
+var fotoProdutoTemp = null;
+var horariosTemp = [];
+var diasTemp = [1,2,3,4,5,6,0]; // todos por defeito
+
+function abrirNovoProduto(){
+  editandoProdutoId = null;
+  fotoProdutoTemp = null;
+  horariosTemp = [];
+  diasTemp = [1,2,3,4,5,6,0];
+  document.getElementById('mProdutoTit').textContent = 'Novo Produto';
+  document.getElementById('pNome').value = '';
+  document.getElementById('pCategoria').value = 'medicamento';
+  document.getElementById('pParaQueServe').value = '';
+  document.getElementById('pAtivo').checked = true;
+  document.getElementById('fotoPreview').innerHTML = '<div class="fp">📷<br>Foto do produto</div>';
+  document.getElementById('btnApagarProduto').style.display = 'none';
+  renderHorariosChips();
+  renderDiasRow();
+  document.getElementById('mProduto').classList.add('a');
+}
+
+function editarProduto(id){
+  var p = getProdutos().find(x => x.id === id);
+  if(!p) return;
+  editandoProdutoId = id;
+  fotoProdutoTemp = p.foto || null;
+  horariosTemp = (p.horarios || []).slice();
+  diasTemp = (p.dias || [1,2,3,4,5,6,0]).slice();
+  document.getElementById('mProdutoTit').textContent = 'Editar Produto';
+  document.getElementById('pNome').value = p.nome || '';
+  document.getElementById('pCategoria').value = p.categoria || 'medicamento';
+  document.getElementById('pParaQueServe').value = p.paraQueServe || '';
+  document.getElementById('pAtivo').checked = p.ativo !== false;
+  document.getElementById('fotoPreview').innerHTML = p.foto ? '<img src="'+p.foto+'">' : '<div class="fp">📷<br>Foto do produto</div>';
+  document.getElementById('btnApagarProduto').style.display = 'block';
+  renderHorariosChips();
+  renderDiasRow();
+  document.getElementById('mProduto').classList.add('a');
+}
+
+function renderHorariosChips(){
+  var el = document.getElementById('horariosChips');
+  if(!horariosTemp.length){ el.innerHTML = '<span style="font-size:11.5px;color:var(--ivory-dim)">Ainda sem horários definidos.</span>'; return; }
+  el.innerHTML = horariosTemp.sort().map(function(h,i){
+    return '<div class="chip">' + h + '<button onclick="removerHorario('+i+')">×</button></div>';
+  }).join('');
+}
+function adicionarHorario(){
+  var v = document.getElementById('novoHorarioInput').value;
+  if(!v){ toast('⚠️ Escolhe uma hora'); return; }
+  if(horariosTemp.indexOf(v) === -1) horariosTemp.push(v);
+  document.getElementById('novoHorarioInput').value = '';
+  renderHorariosChips();
+}
+function removerHorario(i){
+  horariosTemp.splice(i,1);
+  renderHorariosChips();
+}
+
+function renderDiasRow(){
+  var el = document.getElementById('diasRow');
+  el.innerHTML = DIAS_SEMANA.map(function(nome, idx){
+    var on = diasTemp.indexOf(idx) !== -1;
+    return '<div class="diaBtn ' + (on?'on':'') + '" onclick="toggleDiaTemp(' + idx + ')">' + nome + '</div>';
+  }).join('');
+}
+function toggleDiaTemp(idx){
+  var pos = diasTemp.indexOf(idx);
+  if(pos === -1) diasTemp.push(idx); else diasTemp.splice(pos,1);
+  renderDiasRow();
+}
+
+function prevFotoProduto(e){
+  var f = e.target.files[0];
+  if(!f) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    var img = new Image();
+    img.onload = function(){
+      var tam = 320;
+      var canvas = document.createElement('canvas');
+      canvas.width = tam; canvas.height = tam;
+      var ctx = canvas.getContext('2d');
+      var lado = Math.min(img.width, img.height);
+      var sx = (img.width - lado) / 2, sy = (img.height - lado) / 2;
+      ctx.drawImage(img, sx, sy, lado, lado, 0, 0, tam, tam);
+      fotoProdutoTemp = canvas.toDataURL('image/jpeg', 0.75);
+      document.getElementById('fotoPreview').innerHTML = '<img src="'+fotoProdutoTemp+'">';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+function guardarProduto(){
+  var nome = document.getElementById('pNome').value.trim();
+  if(!nome){ toast('⚠️ Indica o nome do produto'); return; }
+  if(!horariosTemp.length){ toast('⚠️ Adiciona pelo menos um horário de toma'); return; }
+
+  var dados = {
+    id: editandoProdutoId || uid(),
+    nome: nome,
+    categoria: document.getElementById('pCategoria').value,
+    paraQueServe: document.getElementById('pParaQueServe').value.trim(),
+    horarios: horariosTemp.slice().sort(),
+    dias: diasTemp.slice(),
+    ativo: document.getElementById('pAtivo').checked,
+    foto: fotoProdutoTemp
+  };
+
+  var lista = getProdutos();
+  if(editandoProdutoId){
+    lista = lista.map(x => x.id === editandoProdutoId ? dados : x);
+  } else {
+    lista.push(dados);
+  }
+  saveProdutos(lista);
+  toast('✅ Produto guardado');
+  fecharModal('mProduto');
+  renderProdutos();
+}
+
+function apagarProduto(){
+  if(!editandoProdutoId) return;
+  if(!confirm('Apagar este produto? O histórico de tomas associado mantém-se.')) return;
+  saveProdutos(getProdutos().filter(x => x.id !== editandoProdutoId));
+  toast('🗑️ Produto apagado');
+  fecharModal('mProduto');
+  renderProdutos();
+}
+
+function catLabel(c){
+  if(c === 'suplemento') return 'Suplemento';
+  if(c === 'vitamina') return 'Vitamina';
+  return 'Medicamento';
+}
+
+function renderProdutos(){
+  var lista = getProdutos();
+  var grid = document.getElementById('produtosGrid');
+  var empty = document.getElementById('produtosEmpty');
+  if(!lista.length){ grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  grid.innerHTML = lista.map(function(p){
+    return '<div class="pCard ' + (p.ativo === false ? 'off' : '') + '" onclick="editarProduto(\''+p.id+'\')">' +
+      (p.ativo === false ? '<div class="offBadge">Pausado</div>' : '') +
+      '<div class="pImg">' + (p.foto ? '<img src="'+p.foto+'">' : '💊') + '</div>' +
+      '<div class="pBody">' +
+        '<div class="pNome">' + p.nome + '</div>' +
+        '<span class="catTag">' + catLabel(p.categoria) + '</span>' +
+        '<div class="pHoras">' + (p.horarios||[]).join(' · ') + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// RESUMO DIÁRIO
+// ══════════════════════════════════════════
+var dataResumo = hojeStr();
+
+function mudarDia(delta){
+  var d = new Date(dataResumo + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  dataResumo = d.toISOString().slice(0,10);
+  renderResumo();
+}
+
+function tomaChave(produtoId, data, horario){ return produtoId + '|' + data + '|' + horario; }
+
+function estaTomado(produtoId, data, horario){
+  return getTomas().some(function(t){ return t.produtoId===produtoId && t.data===data && t.horario===horario && t.tomado; });
+}
+
+function toggleTomado(produtoId, horario){
+  var tomas = getTomas();
+  var idx = tomas.findIndex(function(t){ return t.produtoId===produtoId && t.data===dataResumo && t.horario===horario; });
+  if(idx === -1){
+    tomas.push({ id: uid(), produtoId: produtoId, data: dataResumo, horario: horario, tomado: true, horaReal: horaAgora() });
+  } else {
+    tomas[idx].tomado = !tomas[idx].tomado;
+    tomas[idx].horaReal = tomas[idx].tomado ? horaAgora() : null;
+  }
+  saveTomas(tomas);
+  renderResumo();
+}
+
+function renderResumo(){
+  var d = new Date(dataResumo + 'T12:00:00');
+  var hojeD = hojeStr();
+  var titTxt = dataResumo === hojeD ? 'Hoje' : (dataResumo === addDias(hojeD,-1) ? 'Ontem' : (dataResumo === addDias(hojeD,1) ? 'Amanhã' : d.toLocaleDateString('pt-PT', {weekday:'long'})));
+  document.getElementById('resumoDataTit').textContent = titTxt;
+  document.getElementById('resumoDataSub').textContent = d.toLocaleDateString('pt-PT', {day:'2-digit', month:'long', year:'numeric'});
+
+  // Tensão do dia
+  var bpDia = getTensoes().filter(function(t){ return t.data === dataResumo; }).sort((a,b)=>a.hora.localeCompare(b.hora));
+  var bpEl = document.getElementById('resumoBP');
+  if(!bpDia.length){
+    bpEl.innerHTML = '<div class="bpMiniCard"><span style="font-size:12.5px;color:var(--ivory-dim)">Sem registo de tensão neste dia</span><button class="btnSmall" onclick="ir(\'tensao\')">+ Registar</button></div>';
+  } else {
+    bpEl.innerHTML = bpDia.map(function(t){
+      var c = classificarTensao(t.sis, t.dia);
+      return '<div class="bpMiniCard"><span><b>'+t.sis+'/'+t.dia+'</b> mmHg'+(t.bpm?' · '+t.bpm+' bpm':'')+' <small style="color:var(--ivory-dim)">('+t.hora+')</small></span><span class="badge '+c.cor+'">'+c.label+'</span></div>';
+    }).join('');
+  }
+
+  // Doses do dia
+  var diaSemana = d.getDay();
+  var produtos = getProdutos().filter(function(p){ return p.ativo !== false && (p.dias||[]).indexOf(diaSemana) !== -1; });
+  var doses = [];
+  produtos.forEach(function(p){
+    (p.horarios||[]).forEach(function(h){ doses.push({ produto: p, horario: h }); });
+  });
+  doses.sort(function(a,b){ return a.horario.localeCompare(b.horario); });
+
+  var listaEl = document.getElementById('resumoLista');
+  var emptyEl = document.getElementById('resumoEmpty');
+
+  if(!doses.length){
+    listaEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    document.getElementById('progTxt').textContent = '0 / 0';
+    document.getElementById('progFill').style.width = '0%';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  var agoraHora = horaAgora();
+  var ehHoje = dataResumo === hojeD;
+  var feitos = 0;
+
+  listaEl.innerHTML = doses.map(function(ds){
+    var tomado = estaTomado(ds.produto.id, dataResumo, ds.horario);
+    if(tomado) feitos++;
+    var atrasado = ehHoje && !tomado && ds.horario < agoraHora;
+    return '<div class="doseRow ' + (atrasado?'atrasado':'') + ' ' + (tomado?'feito':'') + '">' +
+      (ds.produto.foto ? '<img class="doseImg" src="'+ds.produto.foto+'">' : '<div class="doseImg" style="display:flex;align-items:center;justify-content:center;font-size:18px">💊</div>') +
+      '<div class="doseInfo"><div class="doseNome">' + ds.produto.nome + '</div><div class="doseMeta">' + ds.horario + ' · ' + catLabel(ds.produto.categoria) + (atrasado ? ' · <span style="color:var(--bad);font-weight:600">Atrasado</span>' : '') + '</div></div>' +
+      '<div class="doseCheck ' + (tomado?'on':'') + '" onclick="toggleTomado(\'' + ds.produto.id + '\',\'' + ds.horario + '\')">' + (tomado?'✓':'') + '</div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('progTxt').textContent = feitos + ' / ' + doses.length;
+  document.getElementById('progFill').style.width = (doses.length ? (feitos/doses.length*100) : 0) + '%';
+}
+
+function addDias(dataStr, delta){
+  var d = new Date(dataStr + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0,10);
+}
+
+// ══════════════════════════════════════════
+// DEFINIÇÕES / BACKUP
+// ══════════════════════════════════════════
+function abrirDefinicoes(){ document.getElementById('mDefinicoes').classList.add('a'); }
+
+function exportarDados(){
+  var pacote = {
+    tipo: 'controlo-saude-backup',
+    exportadoEm: new Date().toISOString(),
+    tensoes: getTensoes(),
+    produtos: getProdutos(),
+    tomas: getTomas()
+  };
+  var blob = new Blob([JSON.stringify(pacote, null, 2)], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'controlo-saude-backup-' + hojeStr() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('⬇️ Cópia de segurança descarregada');
+}
+
+function importarDados(e){
+  var f = e.target.files[0];
+  if(!f) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      var pacote = JSON.parse(ev.target.result);
+      if(!pacote || pacote.tipo !== 'controlo-saude-backup') throw new Error('formato inválido');
+      if(!confirm('Isto vai substituir todos os dados atuais pelos do ficheiro. Continuar?')) return;
+      saveTensoes(pacote.tensoes || []);
+      saveProdutos(pacote.produtos || []);
+      saveTomas(pacote.tomas || []);
+      toast('✅ Dados importados com sucesso');
+      fecharModal('mDefinicoes');
+      renderTensao(); renderProdutos(); renderResumo();
+    }catch(err){
+      toast('❌ Ficheiro inválido');
+    }
+  };
+  reader.readAsText(f);
+}
+
+// ══════════════════════════════════════════
+// INÍCIO
+// ══════════════════════════════════════════
+window.addEventListener('load', function(){
+  document.getElementById('tData').value = hojeStr();
+  document.getElementById('tHora').value = horaAgora();
+  posicionarIndicador(document.querySelector('.tab.on'));
+  renderTensao();
+});
+</script>
+</body>
+</html>
