@@ -49,6 +49,14 @@
   .lbl:first-child{margin-top:0}
   .inp,.sel,.txt{width:100%;padding:11px 13px;background:var(--bg3);border:1px solid var(--line);border-radius:10px;
     color:var(--ivory);font-size:14px;outline:none;font-family:'Jost',sans-serif}
+
+  /* SELETOR DE HORA (substitui o input nativo type=time) */
+  .timeSel{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;
+    background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:0 4px}
+  .timeSel select{border:none;background:transparent;color:var(--ivory);font-size:14px;
+    padding:11px 2px;outline:none;font-family:'Jost',sans-serif;flex:1;min-width:0;text-align:center;
+    text-align-last:center;-webkit-appearance:none;appearance:none}
+  .timeSel span{color:var(--ivory-dim);font-weight:700;flex-shrink:0}
   .txt{resize:vertical;min-height:60px}
   .inp::placeholder,.txt::placeholder{color:#918578}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -150,6 +158,7 @@
     display:flex;align-items:center;justify-content:space-between}
 
   /* FEZES — grelha de tipos e histórico */
+  .fIco{width:34px;height:24px;flex-shrink:0;display:block}
   .fTypeGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
   .fTypeBtn{display:flex;align-items:center;gap:10px;background:var(--bg3);border:2px solid transparent;
     border-radius:12px;padding:8px 10px;cursor:pointer;text-align:left;font-family:'Jost',sans-serif}
@@ -230,7 +239,9 @@
       <div class="ct">Novo Registo</div>
       <div class="row2">
         <div><label class="lbl">Data</label><input type="date" class="inp" id="tData"></div>
-        <div><label class="lbl">Hora</label><input type="time" class="inp" id="tHora"></div>
+        <div><label class="lbl">Hora</label>
+          <div class="timeSel"><select id="tHoraH"></select><span>:</span><select id="tHoraM"></select></div>
+        </div>
       </div>
       <div class="row3">
         <div><label class="lbl">Sistólica</label><input type="number" class="inp" id="tSis" placeholder="120"></div>
@@ -274,7 +285,9 @@
       <div class="ct">Novo Registo</div>
       <div class="row2">
         <div><label class="lbl">Data</label><input type="date" class="inp" id="fData"></div>
-        <div><label class="lbl">Hora</label><input type="time" class="inp" id="fHora"></div>
+        <div><label class="lbl">Hora</label>
+          <div class="timeSel"><select id="fHoraH"></select><span>:</span><select id="fHoraM"></select></div>
+        </div>
       </div>
 
       <label class="lbl">Tipo (Escala de Bristol)</label>
@@ -304,6 +317,8 @@
       <div style="font-size:11px;color:#555">Impresso em <span id="printDataFezes"></span></div>
     </div>
 
+    <div class="chartWrap" id="fChartWrap"></div>
+
     <div class="fTimeline noPrint" id="fTimeline"></div>
 
     <div id="fezesLista"></div>
@@ -321,6 +336,8 @@
     </div>
 
     <div id="resumoBP"></div>
+
+    <div id="resumoFezes"></div>
 
     <div class="progWrap">
       <div class="progTop"><span>Tomas do dia</span><span id="progTxt">0 / 0</span></div>
@@ -362,7 +379,7 @@
     <label class="lbl">Horários de toma</label>
     <div class="chipsRow" id="horariosChips"></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-      <input type="time" class="inp" id="novoHorarioInput" style="width:auto;flex:1">
+      <div class="timeSel" style="flex:1"><select id="novoHorarioH"></select><span>:</span><select id="novoHorarioM"></select></div>
       <button class="addChipBtn" onclick="adicionarHorario()">+ Adicionar</button>
     </div>
 
@@ -439,6 +456,23 @@ function fd(dataStr){
   return p[2]+'/'+p[1]+'/'+p[0];
 }
 
+// ── SELETOR DE HORA CUSTOM (substitui input type=time nativo) ──
+function popularHoraSel(idH, idM){
+  var oh = '', om = '';
+  for(var h=0;h<24;h++){ var hh=String(h).padStart(2,'0'); oh += '<option value="'+hh+'">'+hh+'</option>'; }
+  for(var m=0;m<60;m++){ var mm=String(m).padStart(2,'0'); om += '<option value="'+mm+'">'+mm+'</option>'; }
+  document.getElementById(idH).innerHTML = oh;
+  document.getElementById(idM).innerHTML = om;
+}
+function getHoraSel(idH, idM){
+  return document.getElementById(idH).value + ':' + document.getElementById(idM).value;
+}
+function setHoraSel(idH, idM, hhmm){
+  var p = (hhmm || '00:00').split(':');
+  document.getElementById(idH).value = p[0];
+  document.getElementById(idM).value = p[1];
+}
+
 // ── NAVEGAÇÃO DE ABAS ──
 var ABA_ATUAL = 'tensao';
 document.getElementById('tabs').addEventListener('click', function(e){
@@ -479,7 +513,7 @@ function classificarTensao(sis, dia){
 
 function addTensao(){
   var data = document.getElementById('tData').value || hojeStr();
-  var hora = document.getElementById('tHora').value || horaAgora();
+  var hora = getHoraSel('tHoraH','tHoraM') || horaAgora();
   var sis = parseInt(document.getElementById('tSis').value);
   var dia = parseInt(document.getElementById('tDia').value);
   var bpm = parseInt(document.getElementById('tBpm').value) || null;
@@ -633,10 +667,8 @@ function renderHorariosChips(){
   }).join('');
 }
 function adicionarHorario(){
-  var v = document.getElementById('novoHorarioInput').value;
-  if(!v){ toast('⚠️ Escolhe uma hora'); return; }
+  var v = getHoraSel('novoHorarioH','novoHorarioM');
   if(horariosTemp.indexOf(v) === -1) horariosTemp.push(v);
-  document.getElementById('novoHorarioInput').value = '';
   renderHorariosChips();
 }
 function removerHorario(i){
@@ -792,6 +824,18 @@ function renderResumo(){
     }).join('');
   }
 
+  // Fezes do dia
+  var fDia = getFezes().filter(function(r){ return r.data === dataResumo; }).sort((a,b)=>a.hora.localeCompare(b.hora));
+  var fEl = document.getElementById('resumoFezes');
+  if(!fDia.length){
+    fEl.innerHTML = '<div class="bpMiniCard"><span style="font-size:12.5px;color:var(--ivory-dim)">Sem registo de fezes neste dia</span><button class="btnSmall" onclick="ir(\'fezes\')">+ Registar</button></div>';
+  } else {
+    fEl.innerHTML = fDia.map(function(r){
+      var t = fezesTipo(r.tipo);
+      return '<div class="bpMiniCard"><span style="display:flex;align-items:center;gap:8px">' + iconeFezes(t.id) + '<b>Tipo '+t.id+'</b> <small style="color:var(--ivory-dim)">('+r.hora+')</small></span><span class="badge '+t.cor+'">'+t.rotulo+'</span></div>';
+    }).join('');
+  }
+
   // Doses do dia
   var diaSemana = d.getDay();
   var produtos = getProdutos().filter(function(p){ return p.ativo !== false && (p.dias||[]).indexOf(diaSemana) !== -1; });
@@ -887,7 +931,7 @@ function selecionarTipoFezes(id){
 
 function addFezes(){
   var data = document.getElementById('fData').value || hojeStr();
-  var hora = document.getElementById('fHora').value || horaAgora();
+  var hora = getHoraSel('fHoraH','fHoraM') || horaAgora();
   var notas = document.getElementById('fNotas').value.trim();
 
   if(!fezesTipoSelecionado){ toast('⚠️ Escolhe um dos 7 tipos'); return; }
@@ -937,6 +981,7 @@ function renderFezes(){
 
   if(!lista.length){
     el.innerHTML = '<div class="empty">Ainda não há registos nesta janela de tempo.</div>';
+    document.getElementById('fChartWrap').innerHTML = '';
     return;
   }
 
@@ -952,6 +997,54 @@ function renderFezes(){
       '<button class="delBtn noPrint" onclick="delFezes(\'' + r.id + '\')">🗑️</button>' +
     '</div>';
   }).join('');
+
+  renderFezesChart(lista.slice(0, 20).reverse());
+}
+
+function renderFezesChart(pontos){
+  var wrap = document.getElementById('fChartWrap');
+  if(!pontos.length){ wrap.innerHTML = ''; return; }
+  if(pontos.length < 2){
+    wrap.innerHTML = '<div style="text-align:center;font-size:11.5px;color:var(--ivory-dim);padding:10px 0">Adiciona mais registos para veres a evolução aqui.</div>';
+    return;
+  }
+
+  var W = 600, H = 170, padL = 20, padR = 10, padT = 12, padB = 22;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+  var minV = 1, maxV = 7;
+
+  function x(i){ return padL + (pontos.length === 1 ? innerW/2 : (i/(pontos.length-1)) * innerW); }
+  function y(v){ return padT + innerH - ((v - minV) / (maxV - minV)) * innerH; }
+
+  // Faixas de fundo: 1-2 obstipação, 3-4 normal, 5-7 diarreia
+  var faixas =
+    '<rect x="'+padL+'" y="'+y(2.5).toFixed(1)+'" width="'+innerW+'" height="'+(y(0.5)-y(2.5)).toFixed(1)+'" fill="var(--warn)" opacity="0.08"/>' +
+    '<rect x="'+padL+'" y="'+y(4.5).toFixed(1)+'" width="'+innerW+'" height="'+(y(2.5)-y(4.5)).toFixed(1)+'" fill="var(--ok)" opacity="0.08"/>' +
+    '<rect x="'+padL+'" y="'+y(7.5).toFixed(1)+'" width="'+innerW+'" height="'+(y(4.5)-y(7.5)).toFixed(1)+'" fill="var(--bad)" opacity="0.08"/>';
+
+  var gridY = [];
+  for(var v=1; v<=7; v++){
+    gridY.push('<line x1="'+padL+'" y1="'+y(v).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>');
+    gridY.push('<text x="2" y="'+(y(v)+3).toFixed(1)+'" font-size="9" fill="#6b6058">'+v+'</text>');
+  }
+
+  var linhaD = pontos.map(function(p,i){ return (i===0?'M':'L') + x(i).toFixed(1) + ',' + y(p.tipo).toFixed(1); }).join(' ');
+  var pontosSvg = pontos.map(function(p,i){
+    var t = fezesTipo(p.tipo);
+    return '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.tipo).toFixed(1)+'" r="4" fill="'+FEZES_COR_HEX[t.cor]+'" stroke="var(--bg2)" stroke-width="1.5"/>';
+  }).join('');
+
+  var labelsX = pontos.map(function(p,i){
+    if(pontos.length > 6 && i % Math.ceil(pontos.length/6) !== 0) return '';
+    return '<text x="'+x(i).toFixed(1)+'" y="'+(H-4)+'" font-size="8.5" fill="#6b6058" text-anchor="middle">'+fd(p.data).slice(0,5)+'</text>';
+  }).join('');
+
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">' +
+    faixas + gridY.join('') +
+    '<path d="'+linhaD+'" fill="none" stroke="var(--stool)" stroke-width="2"/>' + pontosSvg + labelsX +
+  '</svg>';
+
+  wrap.innerHTML = svg + '<div class="chartLegend"><span><i class="dot" style="background:var(--warn)"></i>Obstipação</span><span><i class="dot" style="background:var(--ok)"></i>Normal</span><span><i class="dot" style="background:var(--bad)"></i>Diarreia</span></div>';
 }
 
 // ══════════════════════════════════════════
@@ -1005,10 +1098,14 @@ function importarDados(e){
 // INÍCIO
 // ══════════════════════════════════════════
 window.addEventListener('load', function(){
+  popularHoraSel('tHoraH','tHoraM');
+  popularHoraSel('fHoraH','fHoraM');
+  popularHoraSel('novoHorarioH','novoHorarioM');
   document.getElementById('tData').value = hojeStr();
-  document.getElementById('tHora').value = horaAgora();
+  setHoraSel('tHoraH','tHoraM', horaAgora());
   document.getElementById('fData').value = hojeStr();
-  document.getElementById('fHora').value = horaAgora();
+  setHoraSel('fHoraH','fHoraM', horaAgora());
+  setHoraSel('novoHorarioH','novoHorarioM', '08:00');
   renderFTypeGrid();
   posicionarIndicador(document.querySelector('.tab.on'));
   renderTensao();
