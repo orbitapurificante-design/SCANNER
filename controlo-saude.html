@@ -49,6 +49,22 @@
   .lbl:first-child{margin-top:0}
   .inp,.sel,.txt{width:100%;padding:11px 13px;background:var(--bg3);border:1px solid var(--line);border-radius:10px;
     color:var(--ivory);font-size:14px;outline:none;font-family:'Jost',sans-serif}
+
+  /* CAMPO DE HORA (abre o seletor de roda próprio) */
+  .timeField{width:100%;padding:11px 13px;background:var(--bg3);border:1px solid var(--line);border-radius:10px;
+    color:var(--ivory);font-size:14px;font-family:'Jost',sans-serif;cursor:pointer;text-align:center;user-select:none}
+  .timeField.empty{color:#918578}
+
+  /* MODAL SELETOR DE HORA — roda de scroll */
+  .horaWheelWrap{position:relative;display:flex;justify-content:center;align-items:center;gap:8px;height:160px;margin:6px 0 4px}
+  .horaWheel{width:60px;height:160px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;padding:60px 0}
+  .horaWheel::-webkit-scrollbar{display:none}
+  .horaWheel .hItem{height:40px;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:600;
+    scroll-snap-align:center;color:var(--ivory-dim);font-family:'Jost',sans-serif}
+  .wheelColon{font-size:20px;font-weight:700;color:var(--ivory-dim);flex-shrink:0}
+  .wheelHighlight{position:absolute;left:14px;right:14px;top:60px;height:40px;border-top:1.5px solid var(--gold);
+    border-bottom:1.5px solid var(--gold);pointer-events:none;border-radius:8px}
   .txt{resize:vertical;min-height:60px}
   .inp::placeholder,.txt::placeholder{color:#918578}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -231,7 +247,7 @@
       <div class="ct">Novo Registo</div>
       <div class="row2">
         <div><label class="lbl">Data</label><input type="date" class="inp" id="tData"></div>
-        <div><label class="lbl">Hora</label><input type="time" class="inp" id="tHora"></div>
+        <div><label class="lbl">Hora</label><div class="timeField" id="tHora" onclick="abrirHora('tHora')">--:--</div></div>
       </div>
       <div class="row3">
         <div><label class="lbl">Sistólica</label><input type="number" class="inp" id="tSis" placeholder="120"></div>
@@ -275,7 +291,7 @@
       <div class="ct">Novo Registo</div>
       <div class="row2">
         <div><label class="lbl">Data</label><input type="date" class="inp" id="fData"></div>
-        <div><label class="lbl">Hora</label><input type="time" class="inp" id="fHora"></div>
+        <div><label class="lbl">Hora</label><div class="timeField" id="fHora" onclick="abrirHora('fHora')">--:--</div></div>
       </div>
 
       <label class="lbl">Tipo (Escala de Bristol)</label>
@@ -367,7 +383,7 @@
     <label class="lbl">Horários de toma</label>
     <div class="chipsRow" id="horariosChips"></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-      <input type="time" class="inp" id="novoHorarioInput" style="width:auto;flex:1">
+      <div class="timeField empty" id="novoHorarioInput" style="flex:1" onclick="abrirHora('novoHorarioInput')">-- : --</div>
       <button class="addChipBtn" onclick="adicionarHorario()">+ Adicionar</button>
     </div>
 
@@ -406,6 +422,24 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- MODAL SELETOR DE HORA -->
+<div class="modal" id="mHora">
+  <div class="sheet" style="max-width:320px">
+    <div class="sheetTop">
+      <div class="sheetTit">Escolher hora</div>
+      <button class="closeX" onclick="fecharModal('mHora')">×</button>
+    </div>
+    <div class="horaWheelWrap">
+      <div class="horaWheel" id="wheelH"></div>
+      <span class="wheelColon">:</span>
+      <div class="horaWheel" id="wheelM"></div>
+      <div class="wheelHighlight"></div>
+    </div>
+    <button class="btnGold" onclick="confirmarHora()">DEFINIR</button>
+    <button class="btnGhost" onclick="fecharModal('mHora')">CANCELAR</button>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════
 // PERSISTÊNCIA (localStorage — só neste dispositivo)
@@ -442,6 +476,43 @@ function fd(dataStr){
   if(!dataStr) return '';
   var p = dataStr.split('-');
   return p[2]+'/'+p[1]+'/'+p[0];
+}
+
+// ── SELETOR DE HORA (roda de scroll, feito de raiz — evita o diálogo nativo do sistema) ──
+var horaAlvo = null;
+function construirWheel(id, max){
+  var el = document.getElementById(id);
+  var html = '';
+  for(var i=0;i<max;i++){ html += '<div class="hItem">' + String(i).padStart(2,'0') + '</div>'; }
+  el.innerHTML = html;
+}
+function abrirHora(id){
+  horaAlvo = id;
+  var campo = document.getElementById(id);
+  var atual = campo.dataset.v || horaAgora();
+  var p = atual.split(':');
+  document.getElementById('mHora').classList.add('a');
+  requestAnimationFrame(function(){
+    document.getElementById('wheelH').scrollTop = parseInt(p[0], 10) * 40;
+    document.getElementById('wheelM').scrollTop = parseInt(p[1], 10) * 40;
+  });
+}
+function confirmarHora(){
+  var h = Math.max(0, Math.min(23, Math.round(document.getElementById('wheelH').scrollTop / 40)));
+  var m = Math.max(0, Math.min(59, Math.round(document.getElementById('wheelM').scrollTop / 40)));
+  var val = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  var campo = document.getElementById(horaAlvo);
+  campo.dataset.v = val;
+  campo.textContent = val;
+  campo.classList.remove('empty');
+  fecharModal('mHora');
+}
+function valorHora(id){ return document.getElementById(id).dataset.v || ''; }
+function definirHora(id, val){
+  var campo = document.getElementById(id);
+  campo.dataset.v = val;
+  campo.textContent = val;
+  campo.classList.remove('empty');
 }
 
 // ── NAVEGAÇÃO DE ABAS ──
@@ -484,7 +555,7 @@ function classificarTensao(sis, dia){
 
 function addTensao(){
   var data = document.getElementById('tData').value || hojeStr();
-  var hora = document.getElementById('tHora').value || horaAgora();
+  var hora = valorHora('tHora') || horaAgora();
   var sis = parseInt(document.getElementById('tSis').value);
   var dia = parseInt(document.getElementById('tDia').value);
   var bpm = parseInt(document.getElementById('tBpm').value) || null;
@@ -638,10 +709,13 @@ function renderHorariosChips(){
   }).join('');
 }
 function adicionarHorario(){
-  var v = document.getElementById('novoHorarioInput').value;
+  var v = valorHora('novoHorarioInput');
   if(!v){ toast('⚠️ Escolhe uma hora'); return; }
   if(horariosTemp.indexOf(v) === -1) horariosTemp.push(v);
-  document.getElementById('novoHorarioInput').value = '';
+  var campo = document.getElementById('novoHorarioInput');
+  campo.dataset.v = '';
+  campo.textContent = '-- : --';
+  campo.classList.add('empty');
   renderHorariosChips();
 }
 function removerHorario(i){
@@ -904,7 +978,7 @@ function selecionarTipoFezes(id){
 
 function addFezes(){
   var data = document.getElementById('fData').value || hojeStr();
-  var hora = document.getElementById('fHora').value || horaAgora();
+  var hora = valorHora('fHora') || horaAgora();
   var notas = document.getElementById('fNotas').value.trim();
 
   if(!fezesTipoSelecionado){ toast('⚠️ Escolhe um dos 7 tipos'); return; }
@@ -1071,10 +1145,12 @@ function importarDados(e){
 // INÍCIO
 // ══════════════════════════════════════════
 window.addEventListener('load', function(){
+  construirWheel('wheelH', 24);
+  construirWheel('wheelM', 60);
   document.getElementById('tData').value = hojeStr();
-  document.getElementById('tHora').value = horaAgora();
+  definirHora('tHora', horaAgora());
   document.getElementById('fData').value = hojeStr();
-  document.getElementById('fHora').value = horaAgora();
+  definirHora('fHora', horaAgora());
   renderFTypeGrid();
   posicionarIndicador(document.querySelector('.tab.on'));
   renderTensao();
