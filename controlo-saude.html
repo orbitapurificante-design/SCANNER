@@ -13,6 +13,7 @@
     --gold:#a9782e; --gold-soft:#8f6527; --oxblood:#8a2c3d;
     --ivory:#2b2420; --ivory-dim:#6b6058; --line:rgba(43,36,32,.16);
     --ok:#3f8a5f; --warn:#c9860a; --bad:#c0392b; --stool:#8a6238; --stool-dark:#6b4a28;
+    --nrem-leve:#6b8fb0; --nrem-prof:#31537a; --rem:#a9782e;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ivory);font-family:'Jost',sans-serif}
@@ -30,6 +31,27 @@
   .settingsBtn{position:absolute;right:0;top:50%;transform:translateY(-50%);width:34px;height:34px;
     border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;
     justify-content:center;cursor:pointer;color:var(--ivory)}
+  .menuBtn{position:absolute;left:0;top:50%;transform:translateY(-50%);width:34px;height:34px;
+    border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;
+    justify-content:center;cursor:pointer;color:var(--ivory)}
+
+  /* MENU LATERAL (Fezes, Sono...) */
+  .drawerOverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;
+    transition:opacity .25s;z-index:70}
+  .drawerOverlay.a{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;left:0;bottom:0;width:max-content;min-width:132px;max-width:75vw;
+    background:var(--bg2);border-right:1px solid var(--line);transform:translateX(-100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:71;padding:20px 0;display:flex;flex-direction:column;
+    box-shadow:6px 0 24px rgba(0,0,0,.3)}
+  .drawer.a{transform:translateX(0)}
+  .drawerTop{display:flex;align-items:center;justify-content:space-between;padding:0 16px 16px;
+    border-bottom:1px solid var(--line);margin-bottom:8px}
+  .drawerTit{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;color:var(--gold)}
+  .drawerClose{background:none;border:none;color:var(--ivory-dim);cursor:pointer;padding:4px}
+  .drawerItem{padding:13px 18px 13px 20px;font-family:'Jost',sans-serif;font-size:13.5px;letter-spacing:.6px;
+    text-transform:uppercase;font-weight:600;color:var(--ivory-dim);cursor:pointer;white-space:nowrap;
+    border-left:3px solid transparent;transition:color .2s,background .2s}
+  .drawerItem.on{color:var(--gold);border-left-color:var(--gold);background:rgba(169,120,46,.1)}
 
   /* TABS */
   .tabs{display:flex;justify-content:center;gap:4px;max-width:520px;margin:0 auto;position:relative}
@@ -98,6 +120,21 @@
   .chartLegend{display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:10.5px;color:var(--ivory-dim)}
   .chartLegend span{display:inline-flex;align-items:center;gap:5px}
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+  /* SONO */
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .qualBtns{display:flex;gap:8px}
+  .qualBtn{flex:1;text-align:center;padding:10px 4px;border-radius:10px;background:var(--bg3);
+    border:2px solid transparent;font-size:12px;font-weight:600;cursor:pointer;color:var(--ivory-dim)}
+  .qualBtn.sel{border-color:var(--gold);background:rgba(169,120,46,.14);color:var(--ivory)}
+  .durPreview{text-align:center;font-size:13px;color:var(--gold);margin:4px 0 2px;min-height:18px}
+  .sRow{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+  .sTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .sMain{font-size:13.5px;font-weight:700}
+  .sMeta{font-size:11px;color:var(--ivory-dim);margin-top:2px}
+  .sComp{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--bg3)}
+  .sCompLegend{display:flex;gap:12px;margin-top:6px;font-size:9.5px;color:var(--ivory-dim);flex-wrap:wrap}
+  .sCompLegend span{display:inline-flex;align-items:center;gap:4px}
 
   /* MEDICAÇÃO — grid produtos */
   .pGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -219,6 +256,9 @@
 
 <header>
   <div class="hRow">
+    <button class="menuBtn noPrint" onclick="abrirMenu()" aria-label="Abrir menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
     <div class="hBrand">
       <div class="hIcon">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
@@ -229,15 +269,26 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 005 15a1.65 1.65 0 00-1.51-1H3.5a2 2 0 010-4h.09A1.65 1.65 0 005 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 5c.13 0 .26 0 .38 0A1.65 1.65 0 0011 3.5V3a2 2 0 014 0v.09c0 .69.4 1.31 1 1.51.13.05.26.09.38.09a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c0 .13 0 .26.09.38.2.6.82 1 1.51 1H21a2 2 0 010 4h-.09c-.69 0-1.31.4-1.51 1z"/></svg>
     </button>
   </div>
-  <div class="hSub">Tensão, Medicação &amp; Trânsito Intestinal</div>
+  <div class="hSub">Tensão, Medicação, Trânsito &amp; Sono</div>
   <div class="tabs" id="tabs">
     <div class="tab on" data-t="tensao">Tensão</div>
     <div class="tab" data-t="medicacao">Medicação</div>
-    <div class="tab" data-t="fezes">Fezes</div>
     <div class="tab" data-t="resumo">Resumo</div>
     <div class="tabInd" id="tabInd"></div>
   </div>
 </header>
+
+<div class="drawerOverlay noPrint" id="drawerOverlay" onclick="fecharMenu()"></div>
+<nav class="drawer noPrint" id="drawer">
+  <div class="drawerTop">
+    <div class="drawerTit">Mais</div>
+    <button class="drawerClose" onclick="fecharMenu()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="drawerItem" data-t="fezes" onclick="irDrawer('fezes')">Fezes</div>
+  <div class="drawerItem" data-t="sono" onclick="irDrawer('sono')">Sono</div>
+</nav>
 
 <div class="wrap">
 
@@ -328,6 +379,54 @@
     <div id="fezesLista"></div>
   </div>
 
+  <!-- ═══ ECRÃ SONO ═══ -->
+  <div class="ecra" id="ecraSono">
+    <div class="card noPrint">
+      <div class="ct">Novo Registo</div>
+      <label class="lbl">Noite de</label>
+      <input type="date" class="inp" id="sData">
+
+      <div class="row2" style="margin-top:10px">
+        <div><label class="lbl">Adormeci às</label><div class="timeField empty" id="sInicio" onclick="abrirHora('sInicio')">--:--</div></div>
+        <div><label class="lbl">Acordei às</label><div class="timeField empty" id="sFim" onclick="abrirHora('sFim')">--:--</div></div>
+      </div>
+      <div class="durPreview" id="sDurPreview"></div>
+
+      <label class="lbl">Fases do sono (opcional, em minutos)</label>
+      <div class="row3">
+        <div><input type="number" class="inp" id="sLeve" placeholder="Leve" min="0"></div>
+        <div><input type="number" class="inp" id="sProfundo" placeholder="Profundo" min="0"></div>
+        <div><input type="number" class="inp" id="sRem" placeholder="REM" min="0"></div>
+      </div>
+      <div class="fMeta" style="margin:4px 2px 0">Leve + Profundo = sono Não-REM (NREM). Preenche só se tiveres estes dados de uma smartwatch/app.</div>
+
+      <label class="lbl" style="margin-top:10px">Qualidade percebida</label>
+      <div class="qualBtns" id="sQualBtns"></div>
+
+      <label class="lbl">Notas (opcional)</label>
+      <input type="text" class="inp" id="sNotas" placeholder="Ex: café à tarde, acordei várias vezes...">
+      <button class="btnGold" onclick="addSono()">+ REGISTAR</button>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:6px" class="noPrint">
+      <select class="sel" id="sFiltro" style="width:auto;flex:1" onchange="renderSono()">
+        <option value="30">Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="9999">Tudo</option>
+      </select>
+      <button class="btnSmall" onclick="window.print()">🖨️ Imprimir</button>
+    </div>
+
+    <div class="printOnly" style="margin-bottom:14px">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600">Registo de Sono</div>
+      <div style="font-size:11px;color:#555">Impresso em <span id="printDataSono"></span></div>
+    </div>
+
+    <div class="chartWrap" id="sChartWrap"></div>
+
+    <div id="sonoLista"></div>
+  </div>
+
   <!-- ═══ ECRÃ RESUMO DIÁRIO ═══ -->
   <div class="ecra" id="ecraResumo">
     <div class="dateNav">
@@ -342,6 +441,8 @@
     <div id="resumoBP"></div>
 
     <div id="resumoFezes"></div>
+
+    <div id="resumoSono"></div>
 
     <div class="progWrap">
       <div class="progTop"><span>Tomas do dia</span><span id="progTxt">0 / 0</span></div>
@@ -448,6 +549,7 @@ const LS_TENSOES = 'saude_tensoes';
 const LS_PRODUTOS = 'saude_produtos';
 const LS_TOMAS = 'saude_tomas';
 const LS_FEZES = 'saude_fezes';
+const LS_SONO = 'saude_sono';
 const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 function getTensoes(){ try{ return JSON.parse(localStorage.getItem(LS_TENSOES)) || []; }catch(e){ return []; } }
@@ -458,6 +560,8 @@ function getTomas(){ try{ return JSON.parse(localStorage.getItem(LS_TOMAS)) || [
 function saveTomas(a){ localStorage.setItem(LS_TOMAS, JSON.stringify(a)); }
 function getFezes(){ try{ return JSON.parse(localStorage.getItem(LS_FEZES)) || []; }catch(e){ return []; } }
 function saveFezes(a){ localStorage.setItem(LS_FEZES, JSON.stringify(a)); }
+function getSono(){ try{ return JSON.parse(localStorage.getItem(LS_SONO)) || []; }catch(e){ return []; } }
+function saveSono(a){ localStorage.setItem(LS_SONO, JSON.stringify(a)); }
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
@@ -505,6 +609,7 @@ function confirmarHora(){
   campo.dataset.v = val;
   campo.textContent = val;
   campo.classList.remove('empty');
+  if(horaAlvo === 'sInicio' || horaAlvo === 'sFim') atualizarDuracaoPreview();
   fecharModal('mHora');
 }
 function valorHora(id){ return document.getElementById(id).dataset.v || ''; }
@@ -525,14 +630,31 @@ document.getElementById('tabs').addEventListener('click', function(e){
 function ir(tab, el){
   ABA_ATUAL = tab;
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.drawerItem').forEach(x => x.classList.remove('on'));
   document.querySelectorAll('.ecra').forEach(x => x.classList.remove('a'));
-  (el || document.querySelector('.tab[data-t="'+tab+'"]')).classList.add('on');
+  var tabEl = el || document.querySelector('.tab[data-t="'+tab+'"]');
+  var drawerEl = document.querySelector('.drawerItem[data-t="'+tab+'"]');
+  if(tabEl){ tabEl.classList.add('on'); posicionarIndicador(tabEl); }
+  else { document.getElementById('tabInd').style.width = '0px'; }
+  if(drawerEl) drawerEl.classList.add('on');
   document.getElementById('ecra' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('a');
-  posicionarIndicador(document.querySelector('.tab.on'));
   if(tab === 'medicacao') renderProdutos();
   if(tab === 'resumo') renderResumo();
   if(tab === 'tensao') renderTensao();
   if(tab === 'fezes') renderFezes();
+  if(tab === 'sono') renderSono();
+}
+function irDrawer(tab){
+  ir(tab);
+  fecharMenu();
+}
+function abrirMenu(){
+  document.getElementById('drawer').classList.add('a');
+  document.getElementById('drawerOverlay').classList.add('a');
+}
+function fecharMenu(){
+  document.getElementById('drawer').classList.remove('a');
+  document.getElementById('drawerOverlay').classList.remove('a');
 }
 function posicionarIndicador(el){
   if(!el) return;
@@ -883,6 +1005,18 @@ function renderResumo(){
     }).join('');
   }
 
+  // Sono da noite
+  var sDia = getSono().filter(function(r){ return r.data === dataResumo; }).sort((a,b)=>a.inicio.localeCompare(b.inicio));
+  var sEl = document.getElementById('resumoSono');
+  if(!sDia.length){
+    sEl.innerHTML = '<div class="bpMiniCard"><span style="font-size:12.5px;color:var(--ivory-dim)">Sem registo de sono nesta noite</span><button class="btnSmall" onclick="ir(\'sono\')">+ Registar</button></div>';
+  } else {
+    sEl.innerHTML = sDia.map(function(r){
+      var c = classificarSono(r.duracaoMin);
+      return '<div class="bpMiniCard"><span style="display:flex;align-items:center;gap:8px">' + iconeLua() + '<b>' + formatarDuracao(r.duracaoMin) + '</b> <small style="color:var(--ivory-dim)">('+r.inicio+' → '+r.fim+')</small></span><span class="badge '+c.cor+'">'+c.label+'</span></div>';
+    }).join('');
+  }
+
   // Doses do dia
   var diaSemana = d.getDay();
   var produtos = getProdutos().filter(function(p){ return p.ativo !== false && (p.dias||[]).indexOf(diaSemana) !== -1; });
@@ -1095,6 +1229,203 @@ function renderFezesChart(pontos){
 }
 
 // ══════════════════════════════════════════
+// SONO
+// ══════════════════════════════════════════
+const SONO_QUALIDADES = [
+  { id:'boa',      label:'Boa',      cor:'ok' },
+  { id:'razoavel', label:'Razoável', cor:'warn' },
+  { id:'ma',       label:'Má',       cor:'bad' }
+];
+var sonoQualSelecionada = null;
+
+function renderQualBtns(){
+  var el = document.getElementById('sQualBtns');
+  el.innerHTML = SONO_QUALIDADES.map(function(q){
+    return '<div class="qualBtn' + (sonoQualSelecionada === q.id ? ' sel' : '') + '" onclick="selecionarQualidade(\'' + q.id + '\')">' + q.label + '</div>';
+  }).join('');
+}
+function selecionarQualidade(id){
+  sonoQualSelecionada = (sonoQualSelecionada === id) ? null : id;
+  renderQualBtns();
+}
+
+function calcDuracaoMin(inicio, fim){
+  var pi = inicio.split(':'), pf = fim.split(':');
+  var mi = parseInt(pi[0],10) * 60 + parseInt(pi[1],10);
+  var mf = parseInt(pf[0],10) * 60 + parseInt(pf[1],10);
+  var dur = mf - mi;
+  if(dur <= 0) dur += 24 * 60; // passou a meia-noite
+  return dur;
+}
+function formatarDuracao(min){
+  var h = Math.floor(min / 60), m = min % 60;
+  return h + 'h ' + String(m).padStart(2,'0') + 'm';
+}
+function atualizarDuracaoPreview(){
+  var i = valorHora('sInicio'), f = valorHora('sFim');
+  var el = document.getElementById('sDurPreview');
+  if(!i || !f){ el.textContent = ''; return; }
+  el.textContent = 'Duração total: ' + formatarDuracao(calcDuracaoMin(i, f));
+}
+
+function classificarSono(min){
+  if(min < 360) return { cor:'bad',  label:'Insuficiente' };
+  if(min < 420) return { cor:'warn', label:'Pouco' };
+  if(min <= 540) return { cor:'ok',  label:'Adequado' };
+  return { cor:'warn', label:'Prolongado' };
+}
+
+function iconeLua(){
+  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z" fill="var(--nrem-prof)"/></svg>';
+}
+
+function addSono(){
+  var data = document.getElementById('sData').value || hojeStr();
+  var inicio = valorHora('sInicio');
+  var fim = valorHora('sFim');
+  if(!inicio || !fim){ toast('⚠️ Define a hora que adormeceste e a hora que acordaste'); return; }
+
+  var leve = document.getElementById('sLeve').value;
+  var profundo = document.getElementById('sProfundo').value;
+  var rem = document.getElementById('sRem').value;
+  var notas = document.getElementById('sNotas').value.trim();
+
+  var registo = {
+    id: uid(), data: data, inicio: inicio, fim: fim,
+    duracaoMin: calcDuracaoMin(inicio, fim),
+    leve: leve ? parseInt(leve,10) : null,
+    profundo: profundo ? parseInt(profundo,10) : null,
+    rem: rem ? parseInt(rem,10) : null,
+    qualidade: sonoQualSelecionada,
+    notas: notas
+  };
+
+  var lista = getSono();
+  lista.push(registo);
+  saveSono(lista);
+
+  definirHora('sInicio', '');
+  document.getElementById('sInicio').textContent = '--:--';
+  document.getElementById('sInicio').classList.add('empty');
+  definirHora('sFim', '');
+  document.getElementById('sFim').textContent = '--:--';
+  document.getElementById('sFim').classList.add('empty');
+  document.getElementById('sLeve').value = '';
+  document.getElementById('sProfundo').value = '';
+  document.getElementById('sRem').value = '';
+  document.getElementById('sNotas').value = '';
+  document.getElementById('sDurPreview').textContent = '';
+  sonoQualSelecionada = null;
+  renderQualBtns();
+
+  toast('✅ Registo de sono guardado');
+  renderSono();
+}
+
+function delSono(id){
+  if(!confirm('Apagar este registo?')) return;
+  saveSono(getSono().filter(x => x.id !== id));
+  renderSono();
+}
+
+function sonoFiltrados(){
+  var dias = parseInt(document.getElementById('sFiltro').value) || 9999;
+  var limite = Date.now() - dias * 86400000;
+  return getSono()
+    .filter(x => new Date(x.data + 'T' + x.inicio).getTime() >= limite)
+    .sort(function(a,b){ return (b.data + b.inicio).localeCompare(a.data + a.inicio); });
+}
+
+function renderSono(){
+  var lista = sonoFiltrados();
+  var el = document.getElementById('sonoLista');
+  document.getElementById('printDataSono').textContent = new Date().toLocaleDateString('pt-PT');
+
+  if(!lista.length){
+    el.innerHTML = '<div class="empty">Ainda não há registos de sono nesta janela de tempo.</div>';
+    document.getElementById('sChartWrap').innerHTML = '';
+    return;
+  }
+
+  el.innerHTML = lista.map(function(r){
+    var c = classificarSono(r.duracaoMin);
+    var q = SONO_QUALIDADES.find(x => x.id === r.qualidade);
+    var comp = '';
+    if(r.leve != null || r.profundo != null || r.rem != null){
+      var lv = r.leve || 0, pf = r.profundo || 0, rm = r.rem || 0;
+      var tot = lv + pf + rm || 1;
+      comp = '<div class="sComp">' +
+        (lv ? '<div style="width:'+(lv/tot*100)+'%;background:var(--nrem-leve)"></div>' : '') +
+        (pf ? '<div style="width:'+(pf/tot*100)+'%;background:var(--nrem-prof)"></div>' : '') +
+        (rm ? '<div style="width:'+(rm/tot*100)+'%;background:var(--rem)"></div>' : '') +
+      '</div><div class="sCompLegend">' +
+        (lv ? '<span><i class="dot" style="background:var(--nrem-leve)"></i>Leve '+formatarDuracao(lv)+'</span>' : '') +
+        (pf ? '<span><i class="dot" style="background:var(--nrem-prof)"></i>Profundo '+formatarDuracao(pf)+'</span>' : '') +
+        (rm ? '<span><i class="dot" style="background:var(--rem)"></i>REM '+formatarDuracao(rm)+'</span>' : '') +
+      '</div>';
+    }
+    return '<div class="sRow">' +
+      '<div class="sTop">' +
+        '<span style="display:flex;align-items:center;gap:8px">' + iconeLua() +
+          '<span><span class="sMain">' + formatarDuracao(r.duracaoMin) + '</span>' +
+          '<div class="sMeta">' + fd(r.data) + ' · ' + r.inicio + ' → ' + r.fim + (r.notas ? ' · ' + r.notas : '') + '</div></span>' +
+        '</span>' +
+        '<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
+          '<span class="badge ' + c.cor + '">' + c.label + '</span>' +
+          (q ? '<span class="badge ' + q.cor + '">' + q.label + '</span>' : '') +
+        '</span>' +
+      '</div>' +
+      comp +
+      '<div style="text-align:right;margin-top:6px"><button class="delBtn noPrint" onclick="delSono(\'' + r.id + '\')">🗑️</button></div>' +
+    '</div>';
+  }).join('');
+
+  renderSonoChart(lista.slice(0, 20).reverse());
+}
+
+function renderSonoChart(pontos){
+  var wrap = document.getElementById('sChartWrap');
+  if(pontos.length < 2){
+    wrap.innerHTML = '<div style="text-align:center;font-size:11.5px;color:var(--ivory-dim);padding:10px 0">Adiciona mais registos para veres a evolução aqui.</div>';
+    return;
+  }
+
+  var W = 600, H = 170, padL = 24, padR = 10, padT = 12, padB = 22;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+  var horas = pontos.map(p => p.duracaoMin / 60);
+  var minV = Math.max(0, Math.floor(Math.min.apply(null, horas)) - 1);
+  var maxV = Math.ceil(Math.max.apply(null, horas)) + 1;
+
+  function x(i){ return padL + (pontos.length === 1 ? innerW/2 : (i/(pontos.length-1)) * innerW); }
+  function y(v){ return padT + innerH - ((v - minV) / (maxV - minV)) * innerH; }
+
+  var gridY = [], passo = Math.max(1, Math.round((maxV-minV)/4));
+  for(var v = minV; v <= maxV; v += passo){
+    gridY.push('<line x1="'+padL+'" y1="'+y(v).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>');
+    gridY.push('<text x="2" y="'+(y(v)+3).toFixed(1)+'" font-size="9" fill="#6b6058">'+v+'h</text>');
+  }
+
+  var linhaD = pontos.map(function(p,i){ return (i===0?'M':'L') + x(i).toFixed(1) + ',' + y(p.duracaoMin/60).toFixed(1); }).join(' ');
+  var pontosSvg = pontos.map(function(p,i){
+    var c = classificarSono(p.duracaoMin);
+    var cor = c.cor === 'ok' ? 'var(--ok)' : (c.cor === 'warn' ? 'var(--warn)' : 'var(--bad)');
+    return '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.duracaoMin/60).toFixed(1)+'" r="4" fill="'+cor+'" stroke="var(--bg2)" stroke-width="1.5"/>';
+  }).join('');
+
+  var labelsX = pontos.map(function(p,i){
+    if(pontos.length > 6 && i % Math.ceil(pontos.length/6) !== 0) return '';
+    return '<text x="'+x(i).toFixed(1)+'" y="'+(H-4)+'" font-size="8.5" fill="#6b6058" text-anchor="middle">'+fd(p.data).slice(0,5)+'</text>';
+  }).join('');
+
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">' +
+    gridY.join('') +
+    '<path d="'+linhaD+'" fill="none" stroke="var(--nrem-prof)" stroke-width="2"/>' + pontosSvg + labelsX +
+  '</svg>';
+
+  wrap.innerHTML = svg + '<div class="chartLegend"><span><i class="dot" style="background:var(--ok)"></i>Adequado</span><span><i class="dot" style="background:var(--warn)"></i>Pouco/Prolongado</span><span><i class="dot" style="background:var(--bad)"></i>Insuficiente</span></div>';
+}
+
+// ══════════════════════════════════════════
 // DEFINIÇÕES / BACKUP
 // ══════════════════════════════════════════
 function abrirDefinicoes(){ document.getElementById('mDefinicoes').classList.add('a'); }
@@ -1106,7 +1437,8 @@ function exportarDados(){
     tensoes: getTensoes(),
     produtos: getProdutos(),
     tomas: getTomas(),
-    fezes: getFezes()
+    fezes: getFezes(),
+    sono: getSono()
   };
   var blob = new Blob([JSON.stringify(pacote, null, 2)], {type:'application/json'});
   var url = URL.createObjectURL(blob);
@@ -1131,9 +1463,10 @@ function importarDados(e){
       saveProdutos(pacote.produtos || []);
       saveTomas(pacote.tomas || []);
       saveFezes(pacote.fezes || []);
+      saveSono(pacote.sono || []);
       toast('✅ Dados importados com sucesso');
       fecharModal('mDefinicoes');
-      renderTensao(); renderProdutos(); renderResumo(); renderFezes();
+      renderTensao(); renderProdutos(); renderResumo(); renderFezes(); renderSono();
     }catch(err){
       toast('❌ Ficheiro inválido');
     }
@@ -1151,7 +1484,9 @@ window.addEventListener('load', function(){
   definirHora('tHora', horaAgora());
   document.getElementById('fData').value = hojeStr();
   definirHora('fHora', horaAgora());
+  document.getElementById('sData').value = hojeStr();
   renderFTypeGrid();
+  renderQualBtns();
   posicionarIndicador(document.querySelector('.tab.on'));
   renderTensao();
 });
