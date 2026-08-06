@@ -25,7 +25,6 @@
   /* FUNDO COM FOTO */
   body.bgFoto{background-image:url('fundo.jpeg');background-size:cover;background-position:center center;
     background-attachment:fixed}
-  body.bgFoto{--bg2:rgba(244,242,239,.6); --bg3:rgba(220,216,211,.62)}
   body.bgFoto header{background:rgba(231,229,226,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 
   .drawerBgSection{margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
@@ -71,10 +70,11 @@
     transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:71;padding:20px 0;display:flex;flex-direction:column;
     box-shadow:6px 0 24px rgba(0,0,0,.3)}
   .drawer.a{transform:translateX(0)}
-  .drawerTop{display:flex;align-items:center;justify-content:space-between;padding:0 16px 16px;
-    border-bottom:1px solid var(--line);margin-bottom:8px}
+  .drawerTop{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;
+    padding:22px 16px 16px;border-bottom:1px solid var(--line);margin-bottom:8px}
+  .drawerTop .hIcon{width:34px;height:34px}
   .drawerTit{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;color:var(--gold)}
-  .drawerClose{background:none;border:none;color:var(--ivory-dim);cursor:pointer;padding:4px}
+  .drawerClose{position:absolute;top:14px;right:12px;background:none;border:none;color:var(--ivory-dim);cursor:pointer;padding:4px}
   .drawerItem{padding:13px 18px 13px 20px;font-family:'Jost',sans-serif;font-size:13.5px;letter-spacing:.6px;
     text-transform:uppercase;font-weight:600;color:var(--ivory-dim);cursor:pointer;white-space:nowrap;
     border-left:3px solid transparent;transition:color .2s,background .2s}
@@ -162,6 +162,18 @@
   .sComp{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--bg3)}
   .sCompLegend{display:flex;gap:12px;margin-top:6px;font-size:9.5px;color:var(--ivory-dim);flex-wrap:wrap}
   .sCompLegend span{display:inline-flex;align-items:center;gap:4px}
+
+  /* CARDIO */
+  .tipoBtns{display:flex;gap:8px}
+  .tipoBtn{flex:1;text-align:center;padding:12px 4px;border-radius:10px;background:var(--bg3);
+    border:2px solid transparent;font-size:13px;font-weight:600;cursor:pointer;color:var(--ivory-dim)}
+  .tipoBtn.sel{border-color:var(--gold);background:rgba(169,120,46,.14);color:var(--ivory)}
+  .badge.corrida{background:rgba(138,44,61,.15);color:var(--oxblood)}
+  .badge.caminhada{background:rgba(63,138,95,.15);color:var(--ok)}
+  .cRow{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+  .cTop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .cMain{font-size:13.5px;font-weight:700}
+  .cMeta{font-size:11px;color:var(--ivory-dim);margin-top:2px}
 
   /* MEDICAÇÃO — grid produtos */
   .pGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -308,13 +320,17 @@
 <div class="drawerOverlay noPrint" id="drawerOverlay" onclick="fecharMenu()"></div>
 <nav class="drawer noPrint" id="drawer">
   <div class="drawerTop">
-    <div class="drawerTit">Mais</div>
+    <div class="hIcon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+    </div>
+    <div class="drawerTit">Controlo</div>
     <button class="drawerClose" onclick="fecharMenu()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
   <div class="drawerItem" data-t="fezes" onclick="irDrawer('fezes')">Fezes</div>
   <div class="drawerItem" data-t="sono" onclick="irDrawer('sono')">Sono</div>
+  <div class="drawerItem" data-t="cardio" onclick="irDrawer('cardio')">Cardio</div>
 
   <div class="drawerBgSection">
     <div class="bgOptions">
@@ -470,6 +486,50 @@
     <div id="sonoLista"></div>
   </div>
 
+  <!-- ═══ ECRÃ CARDIO ═══ -->
+  <div class="ecra" id="ecraCardio">
+    <div class="card noPrint">
+      <div class="ct">Novo Registo</div>
+
+      <label class="lbl">Tipo de atividade</label>
+      <div class="tipoBtns" id="cTipoBtns"></div>
+
+      <label class="lbl" style="margin-top:10px">Data</label>
+      <input type="date" class="inp" id="cData">
+
+      <div class="row2" style="margin-top:10px">
+        <div><label class="lbl">Início</label><div class="timeField empty" id="cInicio" onclick="abrirHora('cInicio')">--:--</div></div>
+        <div><label class="lbl">Fim</label><div class="timeField empty" id="cFim" onclick="abrirHora('cFim')">--:--</div></div>
+      </div>
+      <div class="durPreview" id="cDurPreview"></div>
+
+      <label class="lbl">Distância (km, opcional)</label>
+      <input type="number" class="inp" id="cDistancia" placeholder="Ex: 5.2" step="0.01" min="0">
+
+      <label class="lbl">Notas (opcional)</label>
+      <input type="text" class="inp" id="cNotas" placeholder="Ex: percurso, sensações, terreno...">
+      <button class="btnGold" onclick="addCardio()">+ REGISTAR</button>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:6px" class="noPrint">
+      <select class="sel" id="cFiltro" style="width:auto;flex:1" onchange="renderCardio()">
+        <option value="30">Últimos 30 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="9999">Tudo</option>
+      </select>
+      <button class="btnSmall" onclick="window.print()">🖨️ Imprimir</button>
+    </div>
+
+    <div class="printOnly" style="margin-bottom:14px">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600">Registo de Cardio</div>
+      <div style="font-size:11px;color:#555">Impresso em <span id="printDataCardio"></span></div>
+    </div>
+
+    <div class="chartWrap" id="cChartWrap"></div>
+
+    <div id="cardioLista"></div>
+  </div>
+
   <!-- ═══ ECRÃ RESUMO DIÁRIO ═══ -->
   <div class="ecra" id="ecraResumo">
     <div class="dateNav">
@@ -562,7 +622,7 @@
       <input type="file" accept="application/json" style="display:none" onchange="importarDados(event)">
     </label>
     <p style="font-size:10px;color:var(--ivory-dim);text-align:center;margin-top:14px;letter-spacing:.5px">
-      VERSÃO 2026-08-06 · MENU + SONO + FUNDO
+      VERSÃO 2026-08-06 · MENU + SONO + CARDIO + FUNDO
     </p>
   </div>
 </div>
@@ -596,6 +656,7 @@ const LS_PRODUTOS = 'saude_produtos';
 const LS_TOMAS = 'saude_tomas';
 const LS_FEZES = 'saude_fezes';
 const LS_SONO = 'saude_sono';
+const LS_CARDIO = 'saude_cardio';
 const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 function getTensoes(){ try{ return JSON.parse(localStorage.getItem(LS_TENSOES)) || []; }catch(e){ return []; } }
@@ -608,6 +669,8 @@ function getFezes(){ try{ return JSON.parse(localStorage.getItem(LS_FEZES)) || [
 function saveFezes(a){ localStorage.setItem(LS_FEZES, JSON.stringify(a)); }
 function getSono(){ try{ return JSON.parse(localStorage.getItem(LS_SONO)) || []; }catch(e){ return []; } }
 function saveSono(a){ localStorage.setItem(LS_SONO, JSON.stringify(a)); }
+function getCardio(){ try{ return JSON.parse(localStorage.getItem(LS_CARDIO)) || []; }catch(e){ return []; } }
+function saveCardio(a){ localStorage.setItem(LS_CARDIO, JSON.stringify(a)); }
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
@@ -656,6 +719,7 @@ function confirmarHora(){
   campo.textContent = val;
   campo.classList.remove('empty');
   if(horaAlvo === 'sInicio' || horaAlvo === 'sFim') atualizarDuracaoPreview();
+  if(horaAlvo === 'cInicio' || horaAlvo === 'cFim') atualizarDuracaoPreviewCardio();
   fecharModal('mHora');
 }
 function valorHora(id){ return document.getElementById(id).dataset.v || ''; }
@@ -689,6 +753,7 @@ function ir(tab, el){
   if(tab === 'tensao') renderTensao();
   if(tab === 'fezes') renderFezes();
   if(tab === 'sono') renderSono();
+  if(tab === 'cardio') renderCardio();
 }
 function irDrawer(tab){
   ir(tab);
@@ -1488,6 +1553,159 @@ function renderSonoChart(pontos){
 }
 
 // ══════════════════════════════════════════
+// CARDIO (corrida / caminhada)
+// ══════════════════════════════════════════
+const CARDIO_TIPOS = [
+  { id:'corrida',   label:'🏃 Corrida',   cor:'corrida' },
+  { id:'caminhada', label:'🚶 Caminhada', cor:'caminhada' }
+];
+var cardioTipoSelecionado = null;
+
+function renderTipoBtns(){
+  var el = document.getElementById('cTipoBtns');
+  el.innerHTML = CARDIO_TIPOS.map(function(t){
+    return '<div class="tipoBtn' + (cardioTipoSelecionado === t.id ? ' sel' : '') + '" onclick="selecionarTipoCardio(\'' + t.id + '\')">' + t.label + '</div>';
+  }).join('');
+}
+function selecionarTipoCardio(id){
+  cardioTipoSelecionado = id;
+  renderTipoBtns();
+}
+
+function atualizarDuracaoPreviewCardio(){
+  var i = valorHora('cInicio'), f = valorHora('cFim');
+  var el = document.getElementById('cDurPreview');
+  if(!i || !f){ el.textContent = ''; return; }
+  el.textContent = 'Duração: ' + formatarDuracao(calcDuracaoMin(i, f));
+}
+
+function formatarRitmo(duracaoMin, distanciaKm){
+  if(!distanciaKm) return '';
+  var minPorKm = duracaoMin / distanciaKm;
+  var m = Math.floor(minPorKm), s = Math.round((minPorKm - m) * 60);
+  if(s === 60){ m++; s = 0; }
+  return m + ':' + String(s).padStart(2,'0') + ' /km';
+}
+
+function addCardio(){
+  if(!cardioTipoSelecionado){ toast('⚠️ Escolhe Corrida ou Caminhada'); return; }
+  var data = document.getElementById('cData').value || hojeStr();
+  var inicio = valorHora('cInicio');
+  var fim = valorHora('cFim');
+  if(!inicio || !fim){ toast('⚠️ Define a hora de início e de fim'); return; }
+
+  var distancia = document.getElementById('cDistancia').value;
+  var notas = document.getElementById('cNotas').value.trim();
+
+  var registo = {
+    id: uid(), tipo: cardioTipoSelecionado, data: data, inicio: inicio, fim: fim,
+    duracaoMin: calcDuracaoMin(inicio, fim),
+    distanciaKm: distancia ? parseFloat(distancia) : null,
+    notas: notas
+  };
+
+  var lista = getCardio();
+  lista.push(registo);
+  saveCardio(lista);
+
+  cardioTipoSelecionado = null;
+  renderTipoBtns();
+  definirHora('cInicio', '');
+  document.getElementById('cInicio').textContent = '--:--';
+  document.getElementById('cInicio').classList.add('empty');
+  definirHora('cFim', '');
+  document.getElementById('cFim').textContent = '--:--';
+  document.getElementById('cFim').classList.add('empty');
+  document.getElementById('cDistancia').value = '';
+  document.getElementById('cNotas').value = '';
+  document.getElementById('cDurPreview').textContent = '';
+
+  toast('✅ Registo de cardio guardado');
+  renderCardio();
+}
+
+function delCardio(id){
+  if(!confirm('Apagar este registo?')) return;
+  saveCardio(getCardio().filter(x => x.id !== id));
+  renderCardio();
+}
+
+function cardioFiltrados(){
+  var dias = parseInt(document.getElementById('cFiltro').value) || 9999;
+  var limite = Date.now() - dias * 86400000;
+  return getCardio()
+    .filter(x => new Date(x.data + 'T' + x.inicio).getTime() >= limite)
+    .sort(function(a,b){ return (b.data + b.inicio).localeCompare(a.data + a.inicio); });
+}
+
+function renderCardio(){
+  var lista = cardioFiltrados();
+  var el = document.getElementById('cardioLista');
+  document.getElementById('printDataCardio').textContent = new Date().toLocaleDateString('pt-PT');
+
+  if(!lista.length){
+    el.innerHTML = '<div class="empty">Ainda não há registos de cardio nesta janela de tempo.</div>';
+    document.getElementById('cChartWrap').innerHTML = '';
+    return;
+  }
+
+  el.innerHTML = lista.map(function(r){
+    var t = CARDIO_TIPOS.find(x => x.id === r.tipo);
+    var ritmo = formatarRitmo(r.duracaoMin, r.distanciaKm);
+    return '<div class="cRow">' +
+      '<div class="cTop">' +
+        '<span><span class="cMain">' + formatarDuracao(r.duracaoMin) + (r.distanciaKm ? ' · ' + r.distanciaKm + ' km' : '') + '</span>' +
+        '<div class="cMeta">' + fd(r.data) + ' · ' + r.inicio + ' → ' + r.fim + (ritmo ? ' · ' + ritmo : '') + (r.notas ? ' · ' + r.notas : '') + '</div></span>' +
+        '<span class="badge ' + t.cor + '">' + t.label.replace(/^\S+\s/,'') + '</span>' +
+      '</div>' +
+      '<div style="text-align:right;margin-top:6px"><button class="delBtn noPrint" onclick="delCardio(\'' + r.id + '\')">🗑️</button></div>' +
+    '</div>';
+  }).join('');
+
+  renderCardioChart(lista.slice(0, 20).reverse());
+}
+
+function renderCardioChart(pontos){
+  var wrap = document.getElementById('cChartWrap');
+  if(pontos.length < 2){
+    wrap.innerHTML = '<div style="text-align:center;font-size:11.5px;color:var(--ivory-dim);padding:10px 0">Adiciona mais registos para veres a evolução aqui.</div>';
+    return;
+  }
+
+  var W = 600, H = 170, padL = 24, padR = 10, padT = 12, padB = 22;
+  var innerW = W - padL - padR, innerH = H - padT - padB;
+  var durs = pontos.map(p => p.duracaoMin);
+  var minV = 0, maxV = Math.ceil(Math.max.apply(null, durs) / 10) * 10 + 10;
+
+  function x(i){ return padL + (pontos.length === 1 ? innerW/2 : (i/(pontos.length-1)) * innerW); }
+  function y(v){ return padT + innerH - ((v - minV) / (maxV - minV)) * innerH; }
+
+  var gridY = [], passo = Math.max(10, Math.round(maxV/4/10)*10);
+  for(var v = minV; v <= maxV; v += passo){
+    gridY.push('<line x1="'+padL+'" y1="'+y(v).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>');
+    gridY.push('<text x="2" y="'+(y(v)+3).toFixed(1)+'" font-size="9" fill="#6b6058">'+v+'m</text>');
+  }
+
+  var linhaD = pontos.map(function(p,i){ return (i===0?'M':'L') + x(i).toFixed(1) + ',' + y(p.duracaoMin).toFixed(1); }).join(' ');
+  var pontosSvg = pontos.map(function(p,i){
+    var cor = p.tipo === 'corrida' ? 'var(--oxblood)' : 'var(--ok)';
+    return '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.duracaoMin).toFixed(1)+'" r="4" fill="'+cor+'" stroke="var(--bg2)" stroke-width="1.5"/>';
+  }).join('');
+
+  var labelsX = pontos.map(function(p,i){
+    if(pontos.length > 6 && i % Math.ceil(pontos.length/6) !== 0) return '';
+    return '<text x="'+x(i).toFixed(1)+'" y="'+(H-4)+'" font-size="8.5" fill="#6b6058" text-anchor="middle">'+fd(p.data).slice(0,5)+'</text>';
+  }).join('');
+
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">' +
+    gridY.join('') +
+    '<path d="'+linhaD+'" fill="none" stroke="var(--gold)" stroke-width="2"/>' + pontosSvg + labelsX +
+  '</svg>';
+
+  wrap.innerHTML = svg + '<div class="chartLegend"><span><i class="dot" style="background:var(--oxblood)"></i>Corrida</span><span><i class="dot" style="background:var(--ok)"></i>Caminhada</span></div>';
+}
+
+// ══════════════════════════════════════════
 // DEFINIÇÕES / BACKUP
 // ══════════════════════════════════════════
 function abrirDefinicoes(){ document.getElementById('mDefinicoes').classList.add('a'); }
@@ -1500,7 +1718,8 @@ function exportarDados(){
     produtos: getProdutos(),
     tomas: getTomas(),
     fezes: getFezes(),
-    sono: getSono()
+    sono: getSono(),
+    cardio: getCardio()
   };
   var blob = new Blob([JSON.stringify(pacote, null, 2)], {type:'application/json'});
   var url = URL.createObjectURL(blob);
@@ -1526,9 +1745,10 @@ function importarDados(e){
       saveTomas(pacote.tomas || []);
       saveFezes(pacote.fezes || []);
       saveSono(pacote.sono || []);
+      saveCardio(pacote.cardio || []);
       toast('✅ Dados importados com sucesso');
       fecharModal('mDefinicoes');
-      renderTensao(); renderProdutos(); renderResumo(); renderFezes(); renderSono();
+      renderTensao(); renderProdutos(); renderResumo(); renderFezes(); renderSono(); renderCardio();
     }catch(err){
       toast('❌ Ficheiro inválido');
     }
@@ -1549,8 +1769,10 @@ window.addEventListener('load', function(){
   document.getElementById('fData').value = hojeStr();
   definirHora('fHora', horaAgora());
   document.getElementById('sData').value = hojeStr();
+  document.getElementById('cData').value = hojeStr();
   renderFTypeGrid();
   renderQualBtns();
+  renderTipoBtns();
   posicionarIndicador(document.querySelector('.tab.on'));
   renderTensao();
 });
