@@ -22,6 +22,30 @@
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ivory);font-family:'Jost',sans-serif}
   ::selection{background:var(--gold);color:#fff}
 
+  /* FUNDO COM FOTO */
+  body.bgFoto{background-image:url('fundo.jpeg');background-size:cover;background-position:center center;
+    background-attachment:fixed}
+  body.bgFoto{--bg2:rgba(244,242,239,.6); --bg3:rgba(220,216,211,.62)}
+  body.bgFoto header{background:rgba(231,229,226,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+
+  .drawerBgSection{margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
+  .bgOptions{display:flex;gap:12px;padding:0 16px}
+  .bgOption{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;user-select:none}
+  .bgOption span{font-size:9px;color:var(--ivory-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .bgSwatch{width:44px;height:44px;border-radius:10px;background:var(--bg);border:2px solid var(--line)}
+  .bgSimplesOpt.on .bgSwatch{border-color:var(--gold)}
+  .bgSimplesOpt.on span{color:var(--gold)}
+  .bgThumb{position:relative;width:44px;height:44px;border-radius:10px;overflow:hidden;
+    border:2px solid var(--line);background:var(--bg3)}
+  .bgFotoOpt.on .bgThumb{border-color:var(--gold)}
+  .bgFotoOpt.on span{color:var(--gold)}
+  .bgThumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .bgThumb.bgSemFoto::after{content:'📷';position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-size:16px;opacity:.4}
+  .bgX{display:none;position:absolute;inset:0;background:rgba(20,15,13,.55);color:#fff;font-size:18px;
+    align-items:center;justify-content:center;font-weight:700;line-height:1}
+  .bgFotoOpt.on .bgX{display:flex}
+
   /* HEADER */
   header{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line);
     padding:14px 16px 0;box-shadow:0 4px 16px rgba(0,0,0,.08)}
@@ -291,6 +315,22 @@
   </div>
   <div class="drawerItem" data-t="fezes" onclick="irDrawer('fezes')">Fezes</div>
   <div class="drawerItem" data-t="sono" onclick="irDrawer('sono')">Sono</div>
+
+  <div class="drawerBgSection">
+    <div class="bgOptions">
+      <div class="bgOption bgSimplesOpt" id="bgSimplesOpt" onclick="aplicarFundo('simples')">
+        <div class="bgSwatch"></div>
+        <span>Simples</span>
+      </div>
+      <div class="bgOption bgFotoOpt" id="bgFotoOpt" onclick="onClickFundoFoto()">
+        <div class="bgThumb" id="bgThumb">
+          <img src="fundo.jpeg" alt="Fundo" onerror="document.getElementById('bgThumb').classList.add('bgSemFoto'); this.style.display='none'">
+          <span class="bgX">×</span>
+        </div>
+        <span>Foto</span>
+      </div>
+    </div>
+  </div>
 </nav>
 
 <div class="wrap">
@@ -522,7 +562,7 @@
       <input type="file" accept="application/json" style="display:none" onchange="importarDados(event)">
     </label>
     <p style="font-size:10px;color:var(--ivory-dim);text-align:center;margin-top:14px;letter-spacing:.5px">
-      VERSÃO 2026-08-06 · MENU + SONO
+      VERSÃO 2026-08-06 · MENU + SONO + FUNDO
     </p>
   </div>
 </div>
@@ -669,6 +709,22 @@ function posicionarIndicador(el){
   ind.style.width = el.offsetWidth + 'px';
 }
 window.addEventListener('resize', function(){ posicionarIndicador(document.querySelector('.tab.on')); });
+
+// ── FUNDO (foto ou simples) ──
+function aplicarFundo(modo){
+  localStorage.setItem('saude_bg', modo);
+  document.body.classList.toggle('bgFoto', modo === 'foto');
+  atualizarFundoUI();
+}
+function onClickFundoFoto(){
+  var atual = localStorage.getItem('saude_bg') || 'simples';
+  aplicarFundo(atual === 'foto' ? 'simples' : 'foto');
+}
+function atualizarFundoUI(){
+  var modo = localStorage.getItem('saude_bg') || 'simples';
+  document.getElementById('bgSimplesOpt').classList.toggle('on', modo === 'simples');
+  document.getElementById('bgFotoOpt').classList.toggle('on', modo === 'foto');
+}
 
 // ══════════════════════════════════════════
 // TENSÃO ARTERIAL
@@ -1486,6 +1542,8 @@ function importarDados(e){
 window.addEventListener('load', function(){
   construirWheel('wheelH', 24);
   construirWheel('wheelM', 60);
+  document.body.classList.toggle('bgFoto', (localStorage.getItem('saude_bg') || 'simples') === 'foto');
+  atualizarFundoUI();
   document.getElementById('tData').value = hojeStr();
   definirHora('tHora', horaAgora());
   document.getElementById('fData').value = hojeStr();
