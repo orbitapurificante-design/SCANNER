@@ -1,0 +1,16 @@
+{
+  "name": "Controlo de Saúde",
+  "short_name": "Saúde",
+  "description": "Tensão, medicação, fezes, sono e cardio.",
+  "start_url": "./controlo-saude.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e7e5e2",
+  "theme_color": "#8a2c3d",
+  "icons": [
+    { "src": "icon-saude-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-saude-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-saude-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-saude-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
