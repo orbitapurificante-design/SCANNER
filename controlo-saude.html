@@ -128,19 +128,21 @@
     font-size:11px;letter-spacing:.5px;cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap}
 
   /* TENSÃO — lista e badges */
-  .tRow{display:grid;grid-template-columns:42px 1fr auto auto;align-items:center;gap:6px;
-    background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin-bottom:8px}
+  .tRow{position:relative;display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:6px;
+    background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:9px 30px 9px 12px;margin-bottom:8px}
   .tDate{font-size:10.5px;line-height:1.3;color:var(--ivory-dim);white-space:nowrap}
   .tDate b{display:block;font-size:11px;color:var(--ivory);font-weight:600}
-  .tVals{font-size:14px;font-weight:700}
-  .tVals small{font-size:10.5px;font-weight:400;color:var(--ivory-dim)}
-  .tVals .tNotas{font-size:10.5px;font-weight:400;color:var(--ivory-dim);margin-left:4px}
-  .badge{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:4px 9px;
-    border-radius:14px;white-space:normal;text-align:center;line-height:1.35;max-width:78px}
+  .tVals{min-width:0}
+  .tValsLine{font-size:14px;font-weight:700}
+  .tValsLine small{font-size:10.5px;font-weight:400;color:var(--ivory-dim)}
+  .tNotas{font-size:10px;font-weight:400;color:var(--ivory-dim);margin-top:2px}
+  .badge{font-size:8.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:3px 8px;
+    border-radius:14px;white-space:normal;text-align:center;line-height:1.3;max-width:74px}
   .badge.ok{background:rgba(63,138,95,.15);color:var(--ok)}
   .badge.warn{background:rgba(201,134,10,.15);color:var(--warn)}
   .badge.bad{background:rgba(192,57,43,.15);color:var(--bad)}
-  .delBtn{background:none;border:none;color:var(--ivory-dim);font-size:16px;cursor:pointer;flex-shrink:0}
+  .delBtn{position:absolute;top:5px;right:5px;background:none;border:none;color:var(--ivory-dim);
+    font-size:13px;cursor:pointer;padding:3px;line-height:1}
 
   .empty{text-align:center;padding:40px 20px;color:var(--ivory-dim);font-size:13px}
 
@@ -624,7 +626,7 @@
       <input type="file" accept="application/json" style="display:none" onchange="importarDados(event)">
     </label>
     <p style="font-size:10px;color:var(--ivory-dim);text-align:center;margin-top:14px;letter-spacing:.5px">
-      VERSÃO 2026-08-06 · TENSÃO SEM CORTES
+      VERSÃO 2026-08-06 · TENSÃO REFINADA
     </p>
   </div>
 </div>
@@ -856,7 +858,10 @@ function renderTensao(){
     var c = classificarTensao(t.sis, t.dia);
     return '<div class="tRow">' +
       '<div class="tDate"><b>' + fd(t.data).slice(0,5) + '</b>' + t.hora + '</div>' +
-      '<div class="tVals">' + t.sis + '/' + t.dia + ' <small>mmHg</small>' + (t.bpm ? ' · ' + t.bpm + ' <small>bpm</small>' : '') + (t.notas ? '<span class="tNotas">· ' + t.notas + '</span>' : '') + '</div>' +
+      '<div class="tVals">' +
+        '<div class="tValsLine">' + t.sis + '/' + t.dia + ' <small>mmHg</small>' + (t.bpm ? ' · ' + t.bpm + ' <small>bpm</small>' : '') + '</div>' +
+        (t.notas ? '<div class="tNotas">' + t.notas + '</div>' : '') +
+      '</div>' +
       '<span class="badge ' + c.cor + '">' + c.label + '</span>' +
       '<button class="delBtn noPrint" onclick="delTensao(\'' + t.id + '\')">🗑️</button>' +
     '</div>';
