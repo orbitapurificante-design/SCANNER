@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a1628">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MARINHA – Fornecedores</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--n:#0a1628;--s:#1a4a8a;--g:#c9a84c;--gl:#e8c97a;--bg:#f4f1ec;--mu:#7a8a9a;--gr:#27ae60;--r:#e74c3c;--cr:#f5f0e8}
+html,body{overscroll-behavior:none}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-height:100vh}
+
+/* PIN */
+#ePin{position:fixed;inset:0;z-index:1000;background:linear-gradient(160deg,var(--n),var(--s));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px}
+.pT{font-family:'Playfair Display',serif;font-size:36px;color:var(--cr);letter-spacing:6px}
+.pS{color:var(--g);font-size:11px;letter-spacing:3px;text-transform:uppercase}
+.pDots{display:flex;gap:14px;margin:8px 0}
+.pDot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.3);background:transparent;transition:.15s}
+.pGrid{display:grid;grid-template-columns:repeat(3,72px);gap:12px}
+.pBtn{height:72px;border:none;border-radius:18px;background:rgba(255,255,255,.1);color:#fff;font-size:24px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:transform .1s,background .1s}
+.pBtn:active{transform:scale(.92);background:rgba(255,255,255,.2)}
+.pErr{color:#ff6b6b;font-size:13px;font-weight:600;min-height:20px;text-align:center}
+
+/* APP */
+#eApp{display:none;flex-direction:column;min-height:100vh}
+#eApp.v{display:flex}
+.cab{position:fixed;top:0;left:0;right:0;z-index:100;height:60px;background:linear-gradient(135deg,var(--n),var(--s));display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:0 3px 16px rgba(0,0,0,.25)}
+.cabT{color:#fff;font-size:17px;font-weight:700;flex:1}
+.nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:#fff;border-top:1px solid rgba(0,0,0,.07);display:flex;height:68px}
+.nBtn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);font-family:'DM Sans',sans-serif}
+.nBtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nBtn.a{color:var(--n)}.nBtn.a svg{stroke:var(--g)}
+.ecra{display:none;padding:72px 0 80px;min-height:100vh}.ecra.a{display:block}
+.s{padding:0 14px}
+.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(10,22,40,.06);margin-bottom:14px}
+.ct{font-size:11px;font-weight:700;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px}
+.inp{width:100%;padding:12px 14px;background:#eef2f7;border:1.5px solid rgba(26,74,138,.14);border-radius:12px;font-size:15px;color:var(--n);outline:none;margin-bottom:10px;font-family:'DM Sans',sans-serif;-webkit-appearance:none}
+.inp:focus{border-color:var(--s);background:#fff}
+.sel{width:100%;padding:12px 14px;background:#eef2f7;border:1.5px solid rgba(26,74,138,.14);border-radius:12px;font-size:15px;color:var(--n);outline:none;margin-bottom:10px;font-family:'DM Sans',sans-serif;-webkit-appearance:none;cursor:pointer}
+.sel:focus{border-color:var(--s);background:#fff}
+.lbl{font-size:11px;font-weight:700;color:var(--mu);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;display:block}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bP{width:100%;padding:15px;background:linear-gradient(135deg,var(--g),var(--gl));color:var(--n);border:none;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.bS{width:100%;padding:13px;background:#eef2f7;color:var(--s);border:1.5px solid rgba(26,74,138,.18);border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:8px}
+.bD{width:100%;padding:13px;background:rgba(231,76,60,.07);color:var(--r);border:1.5px solid rgba(231,76,60,.2);border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.row{display:flex;gap:10px}.row>.bS,.row>.bP{flex:1}
+.stat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+.sItem{background:#fff;border-radius:14px;padding:14px 8px;text-align:center;box-shadow:0 2px 8px rgba(10,22,40,.06)}
+.sVal{font-size:20px;font-weight:800;color:var(--n)}.sLbl{font-size:10px;color:var(--mu);margin-top:2px}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--g),var(--gl));color:var(--n);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cRow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer}
+.cRow:last-child{border-bottom:none}
+
+/* Modais */
+.modal{display:none;position:fixed;inset:0;z-index:500;align-items:flex-end;background:rgba(0,0,0,.45)}
+.modal.a{display:flex}
+.mBox{background:#fff;border-radius:20px 20px 0 0;width:100%;padding:20px;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.mTit{font-size:18px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.mClose{background:#eef2f7;border:none;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;color:var(--mu)}
+
+/* Faturas / movimentos */
+.fatRow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+.fatRow:last-child{border-bottom:none}
+.fatBadge{flex-shrink:0;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;background:var(--s)}
+.fatBadge.pag{background:var(--gr)}
+.fatInfo{flex:1;min-width:0}
+.fatNome{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fatSub{font-size:11px;color:var(--mu);margin-top:1px}
+.fatVal{font-size:15px;font-weight:800;flex-shrink:0}
+.fatPago{width:28px;height:28px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:.15s;font-size:14px;font-weight:900;color:transparent}
+.fatPago.sim{background:var(--gr);border-color:var(--gr);color:#fff}
+.fatPago.nao{background:#fff;border-color:#ddd;color:#ddd}
+.movEdit{background:none;border:none;color:var(--mu);font-size:15px;cursor:pointer;padding:4px;flex-shrink:0}
+.movDel{background:none;border:none;color:var(--r);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0}
+
+.filtBtn{padding:7px 14px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:20px;font-size:12px;font-weight:700;color:var(--mu);cursor:pointer;font-family:'DM Sans',sans-serif}
+.filtBtn.a{background:var(--n);border-color:var(--n);color:var(--g)}
+
+.check-row{display:flex;align-items:center;gap:10px;padding:6px 0 14px}
+.pillRow{display:flex;gap:8px;margin-bottom:10px}
+.pill{flex:1;text-align:center;padding:11px 6px;border-radius:12px;border:1.5px solid rgba(26,74,138,.14);background:#eef2f7;font-size:13px;font-weight:700;color:var(--mu);cursor:pointer}
+.pill.on{background:var(--n);border-color:var(--n);color:var(--g)}
+
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(6px);background:var(--n);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+#toast.v{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ── PIN ── -->
+<div id="ePin">
+  <div class="pT">MARINHA</div>
+  <div class="pS">FORNECEDORES</div>
+  <div class="pDots" id="pDots">
+    <div class="pDot" id="pd0"></div><div class="pDot" id="pd1"></div>
+    <div class="pDot" id="pd2"></div><div class="pDot" id="pd3"></div>
+  </div>
+  <div class="pGrid">
+    <button class="pBtn" onclick="pin('1')">1</button><button class="pBtn" onclick="pin('2')">2</button><button class="pBtn" onclick="pin('3')">3</button>
+    <button class="pBtn" onclick="pin('4')">4</button><button class="pBtn" onclick="pin('5')">5</button><button class="pBtn" onclick="pin('6')">6</button>
+    <button class="pBtn" onclick="pin('7')">7</button><button class="pBtn" onclick="pin('8')">8</button><button class="pBtn" onclick="pin('9')">9</button>
+    <button class="pBtn" onclick="pin('C')" style="font-size:16px">CLR</button><button class="pBtn" onclick="pin('0')">0</button>
+    <button class="pBtn" onclick="pin('X')" style="font-size:18px">⌫</button>
+  </div>
+  <div class="pErr" id="pErr"></div>
+</div>
+
+<!-- ── APP ── -->
+<div id="eApp">
+  <div class="cab">
+    <div class="cabT">Fornecedores</div>
+    <button onclick="logout()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif">SAIR</button>
+  </div>
+
+  <nav class="nav">
+    <button class="nBtn a" id="nb0" onclick="ir(0)">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+      Fornecedores
+    </button>
+    <button class="nBtn" id="nb1" onclick="ir(1)">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Faturas
+    </button>
+  </nav>
+
+  <!-- ══ 0. FORNECEDORES ══ -->
+  <div class="ecra a" id="ecra0">
+    <div class="s">
+      <div class="stat">
+        <div class="sItem"><div class="sVal" id="stForn">0</div><div class="sLbl">Fornecedores</div></div>
+        <div class="sItem"><div class="sVal" id="stDivida" style="color:var(--r)">0€</div><div class="sLbl">Em dívida</div></div>
+        <div class="sItem"><div class="sVal" id="stPagoMes" style="color:var(--gr)">0€</div><div class="sLbl">Pago (mês)</div></div>
+      </div>
+
+      <div class="card no-print">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="ct" style="margin-bottom:0;flex:1">Pesquisar Fornecedor</div>
+          <button onclick="recarregarTudo()" style="padding:6px 12px;background:var(--s);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">↺</button>
+          <button onclick="abrirNovoFornecedor()" style="padding:6px 12px;background:var(--gr);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">+ Novo</button>
+        </div>
+        <input class="inp" id="searchForn" placeholder="Nome empresa, comercial ou contacto..." oninput="renderFornecedores()" style="margin-bottom:0">
+      </div>
+
+      <div class="card">
+        <div id="listaForn"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 1. FATURAS DE FORNECEDOR ══ -->
+  <div class="ecra" id="ecra1">
+    <div class="s">
+      <div class="card no-print">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="ct" style="margin-bottom:0;flex:1">Faturas de Fornecedores</div>
+          <button onclick="abrirNovaFatura()" style="padding:6px 12px;background:var(--gr);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">+ Nova</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="filtBtn a" id="ffb0" onclick="setFiltroFat(0)">Todas</button>
+          <button class="filtBtn" id="ffb1" onclick="setFiltroFat(1)">⏳ Pendentes</button>
+          <button class="filtBtn" id="ffb2" onclick="setFiltroFat(2)">✓ Pagas</button>
+        </div>
+        <input class="inp" id="searchFat" placeholder="🔍 fornecedor ou nº documento..." oninput="renderFaturasForn()" style="margin-bottom:0">
+      </div>
+      <div class="card">
+        <div id="listaFatForn"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MODAL: NOVO/EDITAR FORNECEDOR ── -->
+<div class="modal" id="mFornEdit">
+  <div class="mBox">
+    <div class="mTit"><span id="mFornEditTit">Fornecedor</span><button class="mClose" onclick="fecharModal('mFornEdit')">✕</button></div>
+    <input type="hidden" id="mFornEditId">
+    <label class="lbl">Nome da Empresa</label>
+    <input class="inp" id="fFornEmpresa" placeholder="Ex: Distribuidora Lda">
+    <label class="lbl">Nome Comercial</label>
+    <input class="inp" id="fFornComercial" placeholder="Ex: nome fantasia / marca">
+    <label class="lbl">Contacto Comercial</label>
+    <input class="inp" id="fFornContato" placeholder="Nome e/ou telefone do contacto">
+    <label class="lbl">NIB da Empresa</label>
+    <input class="inp" id="fFornNib" placeholder="PT50 XXXX XXXX XXXX XXXX XXXX X" maxlength="34">
+    <button class="bP" onclick="guardarFornecedor()" style="margin-bottom:8px">💾 GUARDAR</button>
+    <button class="bD" id="btnApagarForn" style="display:none" onclick="apagarFornecedor()">APAGAR FORNECEDOR</button>
+  </div>
+</div>
+
+<!-- ── MODAL: CONTA CORRENTE DO FORNECEDOR ── -->
+<div class="modal" id="mContaCorrente">
+  <div class="mBox">
+    <div class="mTit"><span id="mCCTit">Fornecedor</span><button class="mClose" onclick="fecharModal('mContaCorrente')">✕</button></div>
+
+    <div class="card" style="box-shadow:none;border:1.5px solid rgba(26,74,138,.1);padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--mu)" id="mCCInfo"></div>
+      <button class="bS" style="margin-top:10px;margin-bottom:0" onclick="editarFornecedorAtual()">✎ Editar dados do fornecedor</button>
+    </div>
+
+    <div class="stat" style="margin-bottom:12px">
+      <div class="sItem"><div class="sVal" id="mCCTotalFat">0€</div><div class="sLbl">Total Faturado</div></div>
+      <div class="sItem"><div class="sVal" style="color:var(--gr)" id="mCCTotalPag">0€</div><div class="sLbl">Total Pago</div></div>
+      <div class="sItem"><div class="sVal" style="color:var(--r)" id="mCCSaldo">0€</div><div class="sLbl">Saldo Devido</div></div>
+    </div>
+
+    <button class="bS" onclick="abrirNovaFatura(true)">+ Nova Fatura deste Fornecedor</button>
+
+    <div class="ct" style="margin-top:6px">Movimentos (conta corrente)</div>
+    <div id="listaMovimentos"></div>
+  </div>
+</div>
+
+<!-- ── MODAL: NOVA/EDITAR FATURA DE FORNECEDOR ── -->
+<div class="modal" id="mFatEdit">
+  <div class="mBox">
+    <div class="mTit"><span id="mFatEditTit">Nova Fatura</span><button class="mClose" onclick="fecharModal('mFatEdit')">✕</button></div>
+    <input type="hidden" id="mFatEditId">
+
+    <label class="lbl">Fornecedor</label>
+    <select class="sel" id="fFatFornecedor"></select>
+
+    <div class="row2">
+      <div>
+        <label class="lbl">Tipo Doc.</label>
+        <select class="sel" id="fFatTipo">
+          <option value="FT">FT</option>
+          <option value="FS">FS</option>
+          <option value="FR">FR</option>
+          <option value="NC">NC</option>
+        </select>
+      </div>
+      <div>
+        <label class="lbl">Nº Documento</label>
+        <input class="inp" id="fFatNum" placeholder="FT 001/0001">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label class="lbl">Data</label>
+        <input class="inp" id="fFatData" type="date">
+      </div>
+      <div>
+        <label class="lbl">Valor (€)</label>
+        <input class="inp" id="fFatValor" type="number" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+
+    <button class="bP" onclick="guardarFatura()" style="margin-bottom:8px">💾 GRAVAR FATURA</button>
+    <button class="bD" id="btnApagarFat" style="display:none" onclick="apagarFatura()">APAGAR FATURA</button>
+  </div>
+</div>
+
+<!-- ── MODAL: PAGAMENTO (abre ao clicar no visto) ── -->
+<div class="modal" id="mPagamento">
+  <div class="mBox">
+    <div class="mTit"><span id="mPagTit">Registar Pagamento</span><button class="mClose" onclick="fecharModal('mPagamento')">✕</button></div>
+    <input type="hidden" id="mPagId">
+    <input type="hidden" id="mPagFaturaId">
+    <input type="hidden" id="mPagFornecedorId">
+
+    <div style="font-size:12px;color:var(--mu);margin-bottom:14px" id="mPagInfo"></div>
+
+    <label class="lbl">Forma de Pagamento</label>
+    <div class="pillRow">
+      <div class="pill on" id="pillTransf" onclick="setForma('TRANSFERÊNCIA')">🏦 Transferência</div>
+      <div class="pill" id="pillDinheiro" onclick="setForma('DINHEIRO')">💶 Dinheiro</div>
+    </div>
+    <input type="hidden" id="fPagForma" value="TRANSFERÊNCIA">
+
+    <div id="blocoBanco">
+      <label class="lbl">Banco</label>
+      <div class="pillRow">
+        <div class="pill on" id="pillBPI" onclick="setBanco('BPI')">BPI</div>
+        <div class="pill" id="pillABANCA" onclick="setBanco('ABANCA')">ABANCA</div>
+      </div>
+      <input type="hidden" id="fPagBanco" value="BPI">
+    </div>
+
+    <label class="lbl">Valor (€)</label>
+    <input class="inp" id="fPagValor" type="number" step="0.01" placeholder="0.00">
+
+    <label class="lbl">Data</label>
+    <input class="inp" id="fPagData" type="date">
+
+    <button class="bP" onclick="guardarPagamento()" style="margin-bottom:8px">💾 REGISTAR PAGAMENTO</button>
+    <button class="bD" id="btnApagarPag" style="display:none" onclick="apagarPagamento()">APAGAR PAGAMENTO</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── SUPABASE (mesmo projeto do Scanner) ──────────────────────────────
+const SB_URL = 'https://opzmuzogxfzeqwjxmfvc.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wem11em9neGZ6ZXF3anhtZnZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODMyNzUsImV4cCI6MjA4NzQ1OTI3NX0.nvf4dlF5IXehQ3g33jzw0K43r9LGrHBAdnCT5EvhWuM';
+const db = supabase.createClient(SB_URL, SB_KEY);
+
+const PIN_CORRETO = '1704';
+let _pin = '';
+const HOJE = new Date().toISOString().slice(0,10);
+
+let DB_FORN = [];
+let DB_FAT  = [];   // faturas_fornecedores
+let DB_PAG  = [];   // pagamentos_fornecedores
+let FILTRO_FAT = 0; // 0 todas, 1 pendentes, 2 pagas
+let FORN_ATUAL = null; // id do fornecedor aberto na conta corrente
+
+// ═══════════════════════════════════════════
+// PIN
+// ═══════════════════════════════════════════
+function pin(v) {
+  if(v === 'C') { _pin = ''; }
+  else if(v === 'X') { _pin = _pin.slice(0,-1); }
+  else if(_pin.length < 4) { _pin += v; }
+  for(let i=0;i<4;i++){const dot=document.getElementById('pd'+i);if(dot){if(i<_pin.length){dot.style.background='var(--g)';dot.style.borderColor='var(--g)';dot.style.transform='scale(1.1)';}else{dot.style.background='transparent';dot.style.borderColor='rgba(255,255,255,.3)';dot.style.transform='scale(1)';}}}
+  if(_pin.length === 4) {
+    if(_pin === PIN_CORRETO) {
+      document.getElementById('ePin').style.display = 'none';
+      document.getElementById('eApp').classList.add('v');
+      init();
+    } else {
+      document.getElementById('pErr').textContent = '❌ PIN incorreto';
+      const dots = document.getElementById('pDots');
+      dots.style.transform='translateX(-8px)';
+      setTimeout(()=>dots.style.transform='translateX(8px)',80);
+      setTimeout(()=>dots.style.transform='translateX(-6px)',160);
+      setTimeout(()=>dots.style.transform='translateX(0)',240);
+      setTimeout(()=>{_pin='';for(let i=0;i<4;i++){const d=document.getElementById('pd'+i);if(d){d.style.background='transparent';d.style.borderColor='rgba(255,255,255,.3)';d.style.transform='scale(1)';}}document.getElementById('pErr').textContent='';},700);
+    }
+  }
+}
+
+function logout() {
+  if(!confirm('Terminar sessão?')) return;
+  _pin = '';
+  document.getElementById('eApp').classList.remove('v');
+  document.getElementById('ePin').style.display='';
+  for(let i=0;i<4;i++){const d=document.getElementById('pd'+i);if(d){d.style.background='transparent';d.style.borderColor='rgba(255,255,255,.3)';}}
+}
+
+// ═══════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════
+function ir(i) {
+  document.querySelectorAll('.ecra').forEach(e=>e.classList.remove('a'));
+  document.querySelectorAll('.nBtn').forEach(e=>e.classList.remove('a'));
+  document.getElementById('ecra'+i).classList.add('a');
+  document.getElementById('nb'+i).classList.add('a');
+}
+
+function fecharModal(id){ document.getElementById(id).classList.remove('a'); }
+function abrirModal(id){ document.getElementById(id).classList.add('a'); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('v');
+  setTimeout(() => t.classList.remove('v'), 2400);
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(v){ return (Number(v)||0).toFixed(2).replace('.',',') + '€'; }
+
+// ═══════════════════════════════════════════
+// INIT / CARREGAR DADOS
+// ═══════════════════════════════════════════
+async function init() {
+  document.getElementById('fFatData').value = HOJE;
+  document.getElementById('fPagData').value = HOJE;
+  await carregarTudo();
+}
+
+async function carregarTudo() {
+  try {
+    const [{ data: forn, error: e1 }, { data: fat, error: e2 }, { data: pag, error: e3 }] = await Promise.all([
+      db.from('fornecedores').select('*').order('nome_empresa', { ascending: true }),
+      db.from('faturas_fornecedores').select('*').order('data', { ascending: false }),
+      db.from('pagamentos_fornecedores').select('*').order('data', { ascending: false })
+    ]);
+    if(e1) throw e1; if(e2) throw e2; if(e3) throw e3;
+    DB_FORN = forn || [];
+    DB_FAT  = fat  || [];
+    DB_PAG  = pag  || [];
+    renderFornecedores();
+    renderFaturasForn();
+    renderStats();
+  } catch(e) {
+    console.error(e);
+    toast('❌ Erro ao carregar: ' + e.message);
+  }
+}
+
+async function recarregarTudo() {
+  toast('↺ A atualizar...');
+  await carregarTudo();
+  toast('✅ Atualizado');
+}
+
+function saldoFornecedor(fornId) {
+  const totFat = DB_FAT.filter(f=>f.fornecedor_id===fornId).reduce((s,f)=>s+Number(f.valor||0),0);
+  const totPag = DB_PAG.filter(p=>p.fornecedor_id===fornId).reduce((s,p)=>s+Number(p.valor||0),0);
+  return { totFat, totPag, saldo: totFat - totPag };
+}
+
+function pagoDeFatura(fatId) {
+  return DB_PAG.filter(p=>p.fatura_id===fatId).reduce((s,p)=>s+Number(p.valor||0),0);
+}
+
+function renderStats() {
+  document.getElementById('stForn').textContent = DB_FORN.length;
+  let divida = 0;
+  DB_FORN.forEach(f => { divida += saldoFornecedor(f.id).saldo; });
+  document.getElementById('stDivida').textContent = fmt(divida);
+  const inicioMes = HOJE.slice(0,7);
+  const pagoMes = DB_PAG.filter(p => (p.data||'').slice(0,7) === inicioMes).reduce((s,p)=>s+Number(p.valor||0),0);
+  document.getElementById('stPagoMes').textContent = fmt(pagoMes);
+}
+
+// ═══════════════════════════════════════════
+// FORNECEDORES — LISTA
+// ═══════════════════════════════════════════
+function renderFornecedores() {
+  const q = (document.getElementById('searchForn').value||'').toLowerCase();
+  const lista = DB_FORN.filter(c =>
+    (c.nome_empresa||'').toLowerCase().includes(q) ||
+    (c.nome_comercial||'').toLowerCase().includes(q) ||
+    (c.contato_comercial||'').toLowerCase().includes(q)
+  );
+  const el = document.getElementById('listaForn');
+  if(lista.length===0){
+    if(DB_FORN.length===0){
+      el.innerHTML = `<div style="text-align:center;padding:30px 10px;color:var(--mu)">
+        <div style="font-weight:700;margin-bottom:4px">Sem fornecedores</div>
+        <div style="font-size:12px;margin-bottom:14px">Cria o primeiro fornecedor para começares.</div>
+        <button onclick="abrirNovoFornecedor()" style="padding:10px 20px;background:var(--gr);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">+ Novo Fornecedor</button>
+      </div>`;
+    } else {
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu);font-size:13px">Nenhum fornecedor encontrado</div>';
+    }
+    return;
+  }
+  el.innerHTML = lista.map(c => {
+    const { saldo } = saldoFornecedor(c.id);
+    const inicial = (c.nome_empresa||'?').trim().charAt(0).toUpperCase();
+    return `<div class="cRow" onclick="abrirContaCorrente('${c.id}')">
+      <div class="avatar">${inicial}</div>
+      <div class="fatInfo">
+        <div class="fatNome">${esc(c.nome_empresa)}</div>
+        <div class="fatSub">${esc(c.nome_comercial||c.contato_comercial||'')}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:14px;font-weight:800;color:${saldo>0.005?'var(--r)':'var(--gr)'}">${fmt(saldo)}</div>
+        <div style="font-size:10px;color:var(--mu)">${saldo>0.005?'em dívida':'saldado'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirNovoFornecedor() {
+  document.getElementById('mFornEditTit').textContent = 'Novo Fornecedor';
+  document.getElementById('mFornEditId').value = '';
+  document.getElementById('fFornEmpresa').value = '';
+  document.getElementById('fFornComercial').value = '';
+  document.getElementById('fFornContato').value = '';
+  document.getElementById('fFornNib').value = '';
+  document.getElementById('btnApagarForn').style.display = 'none';
+  abrirModal('mFornEdit');
+}
+
+function editarFornecedor(id) {
+  const c = DB_FORN.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('mFornEditTit').textContent = 'Editar Fornecedor';
+  document.getElementById('mFornEditId').value = c.id;
+  document.getElementById('fFornEmpresa').value = c.nome_empresa||'';
+  document.getElementById('fFornComercial').value = c.nome_comercial||'';
+  document.getElementById('fFornContato').value = c.contato_comercial||'';
+  document.getElementById('fFornNib').value = c.nib||'';
+  document.getElementById('btnApagarForn').style.display = 'block';
+  abrirModal('mFornEdit');
+}
+
+function editarFornecedorAtual(){ if(FORN_ATUAL) editarFornecedor(FORN_ATUAL); }
+
+async function guardarFornecedor() {
+  const nomeEmpresa = document.getElementById('fFornEmpresa').value.trim();
+  if(!nomeEmpresa) return toast('⚠️ Indica o nome da empresa');
+  const d = {
+    nome_empresa: nomeEmpresa,
+    nome_comercial: document.getElementById('fFornComercial').value.trim(),
+    contato_comercial: document.getElementById('fFornContato').value.trim(),
+    nib: document.getElementById('fFornNib').value.trim()
+  };
+  const id = document.getElementById('mFornEditId').value;
+  try {
+    if(!id) {
+      const { error } = await db.from('fornecedores').insert(d);
+      if(error) throw error;
+      toast('✅ Fornecedor criado');
+    } else {
+      const { error } = await db.from('fornecedores').update(d).eq('id', id);
+      if(error) throw error;
+      toast('✅ Fornecedor guardado');
+    }
+    fecharModal('mFornEdit');
+    await carregarTudo();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
+
+async function apagarFornecedor() {
+  const id = document.getElementById('mFornEditId').value;
+  if(!id) return;
+  if(!confirm('Apagar este fornecedor e todo o seu histórico (faturas e pagamentos)?')) return;
+  try {
+    await db.from('pagamentos_fornecedores').delete().eq('fornecedor_id', id);
+    await db.from('faturas_fornecedores').delete().eq('fornecedor_id', id);
+    const { error } = await db.from('fornecedores').delete().eq('id', id);
+    if(error) throw error;
+    fecharModal('mFornEdit');
+    fecharModal('mContaCorrente');
+    toast('🗑️ Fornecedor apagado');
+    await carregarTudo();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════
+// CONTA CORRENTE
+// ═══════════════════════════════════════════
+function abrirContaCorrente(fornId) {
+  const c = DB_FORN.find(x=>x.id===fornId);
+  if(!c) return;
+  FORN_ATUAL = fornId;
+  document.getElementById('mCCTit').textContent = c.nome_empresa;
+  document.getElementById('mCCInfo').innerHTML =
+    `${esc(c.nome_comercial||'—')}${c.contato_comercial ? ' · '+esc(c.contato_comercial) : ''}${c.nib ? '<br>NIB: '+esc(c.nib) : ''}`;
+  renderContaCorrente();
+  abrirModal('mContaCorrente');
+}
+
+function renderContaCorrente() {
+  if(!FORN_ATUAL) return;
+  const { totFat, totPag, saldo } = saldoFornecedor(FORN_ATUAL);
+  document.getElementById('mCCTotalFat').textContent = fmt(totFat);
+  document.getElementById('mCCTotalPag').textContent = fmt(totPag);
+  document.getElementById('mCCSaldo').textContent = fmt(saldo);
+
+  const movs = [];
+  DB_FAT.filter(f=>f.fornecedor_id===FORN_ATUAL).forEach(f => movs.push({ tipo:'fatura', data:f.data, obj:f }));
+  DB_PAG.filter(p=>p.fornecedor_id===FORN_ATUAL).forEach(p => movs.push({ tipo:'pagamento', data:p.data, obj:p }));
+  movs.sort((a,b) => (b.data||'').localeCompare(a.data||''));
+
+  const el = document.getElementById('listaMovimentos');
+  if(movs.length===0){
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--mu);font-size:13px">Sem movimentos ainda</div>';
+    return;
+  }
+  el.innerHTML = movs.map(m => {
+    if(m.tipo === 'fatura') {
+      const f = m.obj;
+      const pago = pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
+      return `<div class="fatRow">
+        <div class="fatBadge">${esc(f.tipo||'FT')}</div>
+        <div class="fatInfo">
+          <div class="fatNome">${esc(f.numero||'s/ nº')}</div>
+          <div class="fatSub">${f.data||''} · Fatura</div>
+        </div>
+        <div class="fatVal">${fmt(f.valor)}</div>
+        <div class="fatPago ${pago?'sim':'nao'}" onclick="abrirPagamento('${f.id}')">${pago?'✓':''}</div>
+        <button class="movEdit" onclick="editarFatura('${f.id}')">✎</button>
+      </div>`;
+    } else {
+      const p = m.obj;
+      return `<div class="fatRow">
+        <div class="fatBadge pag">${p.forma_pagamento==='DINHEIRO'?'💶':'🏦'}</div>
+        <div class="fatInfo">
+          <div class="fatNome">${esc(p.forma_pagamento||'')}${p.banco ? ' · '+esc(p.banco) : ''}</div>
+          <div class="fatSub">${p.data||''} · Pagamento</div>
+        </div>
+        <div class="fatVal" style="color:var(--gr)">−${fmt(p.valor)}</div>
+        <button class="movEdit" onclick="editarPagamento('${p.id}')">✎</button>
+        <button class="movDel" onclick="apagarPagamentoRapido('${p.id}')">🗑</button>
+      </div>`;
+    }
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// FATURAS DE FORNECEDOR — LISTA / TAB
+// ═══════════════════════════════════════════
+function setFiltroFat(i) {
+  FILTRO_FAT = i;
+  document.querySelectorAll('#ecra1 .filtBtn').forEach(b=>b.classList.remove('a'));
+  document.getElementById('ffb'+i).classList.add('a');
+  renderFaturasForn();
+}
+
+function nomeFornecedor(id) {
+  const c = DB_FORN.find(x=>x.id===id);
+  return c ? c.nome_empresa : '(fornecedor removido)';
+}
+
+function renderFaturasForn() {
+  const q = (document.getElementById('searchFat').value||'').toLowerCase();
+  let lista = DB_FAT.filter(f => {
+    const pago = pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
+    if(FILTRO_FAT===1 && pago) return false;
+    if(FILTRO_FAT===2 && !pago) return false;
+    const texto = (nomeFornecedor(f.fornecedor_id)+' '+(f.numero||'')).toLowerCase();
+    return texto.includes(q);
+  });
+  const el = document.getElementById('listaFatForn');
+  if(lista.length===0){
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu);font-size:13px">Nenhuma fatura encontrada</div>';
+    return;
+  }
+  el.innerHTML = lista.map(f => {
+    const pago = pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
+    return `<div class="fatRow">
+      <div class="fatBadge">${esc(f.tipo||'FT')}</div>
+      <div class="fatInfo" onclick="editarFatura('${f.id}')" style="cursor:pointer">
+        <div class="fatNome">${esc(nomeFornecedor(f.fornecedor_id))}</div>
+        <div class="fatSub">${esc(f.numero||'s/ nº')} · ${f.data||''}</div>
+      </div>
+      <div class="fatVal">${fmt(f.valor)}</div>
+      <div class="fatPago ${pago?'sim':'nao'}" onclick="abrirPagamento('${f.id}')">${pago?'✓':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function abrirNovaFatura(fromConta) {
+  document.getElementById('mFatEditTit').textContent = 'Nova Fatura';
+  document.getElementById('mFatEditId').value = '';
+  document.getElementById('fFatTipo').value = 'FT';
+  document.getElementById('fFatNum').value = '';
+  document.getElementById('fFatData').value = HOJE;
+  document.getElementById('fFatValor').value = '';
+  document.getElementById('btnApagarFat').style.display = 'none';
+
+  const sel = document.getElementById('fFatFornecedor');
+  sel.innerHTML = DB_FORN.map(c => `<option value="${c.id}">${esc(c.nome_empresa)}</option>`).join('');
+  if(fromConta && FORN_ATUAL) sel.value = FORN_ATUAL;
+
+  abrirModal('mFatEdit');
+}
+
+function editarFatura(id) {
+  const f = DB_FAT.find(x=>x.id===id);
+  if(!f) return;
+  document.getElementById('mFatEditTit').textContent = 'Editar Fatura';
+  document.getElementById('mFatEditId').value = f.id;
+  const sel = document.getElementById('fFatFornecedor');
+  sel.innerHTML = DB_FORN.map(c => `<option value="${c.id}">${esc(c.nome_empresa)}</option>`).join('');
+  sel.value = f.fornecedor_id;
+  document.getElementById('fFatTipo').value = f.tipo||'FT';
+  document.getElementById('fFatNum').value = f.numero||'';
+  document.getElementById('fFatData').value = f.data||HOJE;
+  document.getElementById('fFatValor').value = f.valor||'';
+  document.getElementById('btnApagarFat').style.display = 'block';
+  abrirModal('mFatEdit');
+}
+
+async function guardarFatura() {
+  const fornecedor_id = document.getElementById('fFatFornecedor').value;
+  const valor = parseFloat(document.getElementById('fFatValor').value);
+  if(!fornecedor_id) return toast('⚠️ Seleciona o fornecedor');
+  if(!valor || valor<=0) return toast('⚠️ Indica um valor válido');
+  const d = {
+    fornecedor_id,
+    tipo: document.getElementById('fFatTipo').value,
+    numero: document.getElementById('fFatNum').value.trim(),
+    data: document.getElementById('fFatData').value || HOJE,
+    valor
+  };
+  const id = document.getElementById('mFatEditId').value;
+  try {
+    if(!id) {
+      const { error } = await db.from('faturas_fornecedores').insert(d);
+      if(error) throw error;
+      toast('✅ Fatura criada');
+    } else {
+      const { error } = await db.from('faturas_fornecedores').update(d).eq('id', id);
+      if(error) throw error;
+      toast('✅ Fatura guardada');
+    }
+    fecharModal('mFatEdit');
+    await carregarTudo();
+    if(FORN_ATUAL) renderContaCorrente();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
+
+async function apagarFatura() {
+  const id = document.getElementById('mFatEditId').value;
+  if(!id || !confirm('Apagar esta fatura e os pagamentos associados?')) return;
+  try {
+    await db.from('pagamentos_fornecedores').delete().eq('fatura_id', id);
+    const { error } = await db.from('faturas_fornecedores').delete().eq('id', id);
+    if(error) throw error;
+    fecharModal('mFatEdit');
+    toast('🗑️ Fatura apagada');
+    await carregarTudo();
+    if(FORN_ATUAL) renderContaCorrente();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════
+// PAGAMENTO — modal que abre ao clicar no "visto"
+// ═══════════════════════════════════════════
+function setForma(v) {
+  document.getElementById('fPagForma').value = v;
+  document.getElementById('pillTransf').classList.toggle('on', v==='TRANSFERÊNCIA');
+  document.getElementById('pillDinheiro').classList.toggle('on', v==='DINHEIRO');
+  document.getElementById('blocoBanco').style.display = v==='TRANSFERÊNCIA' ? 'block' : 'none';
+}
+function setBanco(v) {
+  document.getElementById('fPagBanco').value = v;
+  document.getElementById('pillBPI').classList.toggle('on', v==='BPI');
+  document.getElementById('pillABANCA').classList.toggle('on', v==='ABANCA');
+}
+
+function abrirPagamento(faturaId) {
+  const f = DB_FAT.find(x=>x.id===faturaId);
+  if(!f) return;
+  const jaPago = pagoDeFatura(f.id);
+  const restante = Math.max(0, Number(f.valor||0) - jaPago);
+
+  document.getElementById('mPagTit').textContent = 'Registar Pagamento';
+  document.getElementById('mPagId').value = '';
+  document.getElementById('mPagFaturaId').value = f.id;
+  document.getElementById('mPagFornecedorId').value = f.fornecedor_id;
+  document.getElementById('mPagInfo').innerHTML =
+    `<b>${esc(nomeFornecedor(f.fornecedor_id))}</b><br>${esc(f.tipo||'FT')} ${esc(f.numero||'')} · Valor da fatura: ${fmt(f.valor)}${jaPago>0.005?'<br>Já pago: '+fmt(jaPago):''}`;
+  setForma('TRANSFERÊNCIA');
+  setBanco('BPI');
+  document.getElementById('fPagValor').value = restante.toFixed(2);
+  document.getElementById('fPagData').value = HOJE;
+  document.getElementById('btnApagarPag').style.display = 'none';
+  abrirModal('mPagamento');
+}
+
+function editarPagamento(pagId) {
+  const p = DB_PAG.find(x=>x.id===pagId);
+  if(!p) return;
+  const f = DB_FAT.find(x=>x.id===p.fatura_id);
+  document.getElementById('mPagTit').textContent = 'Editar Pagamento';
+  document.getElementById('mPagId').value = p.id;
+  document.getElementById('mPagFaturaId').value = p.fatura_id||'';
+  document.getElementById('mPagFornecedorId').value = p.fornecedor_id;
+  document.getElementById('mPagInfo').innerHTML =
+    `<b>${esc(nomeFornecedor(p.fornecedor_id))}</b>${f? '<br>'+esc(f.tipo||'FT')+' '+esc(f.numero||'') : ''}`;
+  setForma(p.forma_pagamento||'TRANSFERÊNCIA');
+  setBanco(p.banco||'BPI');
+  document.getElementById('fPagValor').value = p.valor;
+  document.getElementById('fPagData').value = p.data || HOJE;
+  document.getElementById('btnApagarPag').style.display = 'block';
+  abrirModal('mPagamento');
+}
+
+async function guardarPagamento() {
+  const valor = parseFloat(document.getElementById('fPagValor').value);
+  if(!valor || valor<=0) return toast('⚠️ Indica um valor válido');
+  const forma = document.getElementById('fPagForma').value;
+  const d = {
+    fornecedor_id: document.getElementById('mPagFornecedorId').value,
+    fatura_id: document.getElementById('mPagFaturaId').value || null,
+    forma_pagamento: forma,
+    banco: forma==='TRANSFERÊNCIA' ? document.getElementById('fPagBanco').value : null,
+    valor,
+    data: document.getElementById('fPagData').value || HOJE
+  };
+  const id = document.getElementById('mPagId').value;
+  try {
+    if(!id) {
+      const { error } = await db.from('pagamentos_fornecedores').insert(d);
+      if(error) throw error;
+      toast('✅ Pagamento registado');
+    } else {
+      const { error } = await db.from('pagamentos_fornecedores').update(d).eq('id', id);
+      if(error) throw error;
+      toast('✅ Pagamento atualizado');
+    }
+    fecharModal('mPagamento');
+    await carregarTudo();
+    if(FORN_ATUAL) renderContaCorrente();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
+
+async function apagarPagamento() {
+  const id = document.getElementById('mPagId').value;
+  if(!id || !confirm('Apagar este pagamento?')) return;
+  try {
+    const { error } = await db.from('pagamentos_fornecedores').delete().eq('id', id);
+    if(error) throw error;
+    fecharModal('mPagamento');
+    toast('🗑️ Pagamento apagado');
+    await carregarTudo();
+    if(FORN_ATUAL) renderContaCorrente();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
+
+async function apagarPagamentoRapido(id) {
+  if(!confirm('Apagar este pagamento?')) return;
+  try {
+    const { error } = await db.from('pagamentos_fornecedores').delete().eq('id', id);
+    if(error) throw error;
+    toast('🗑️ Pagamento apagado');
+    await carregarTudo();
+    if(FORN_ATUAL) renderContaCorrente();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
+
+// Fechar modais ao clicar fora
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => { if(e.target === m) m.classList.remove('a'); });
+});
+
+// Botão retroceder Android — fecha modais em vez de sair
+history.pushState({ appPage: true }, '', '');
+window.addEventListener('popstate', () => {
+  history.pushState({ appPage: true }, '', '');
+  const modalAberto = document.querySelector('.modal.a');
+  if (modalAberto) { modalAberto.classList.remove('a'); return; }
+});
+</script>
+</body>
+</html>
