@@ -11,9 +11,13 @@ create table if not exists fornecedores (
   nome_empresa text not null,
   nome_comercial text,
   contato_comercial text,
+  nif text,
   nib text,
   created_at timestamptz default now()
 );
+
+-- Se a tabela "fornecedores" já existia (versão anterior sem NIF), corre isto:
+alter table fornecedores add column if not exists nif text;
 
 -- 2. FATURAS DE FORNECEDOR
 create table if not exists faturas_fornecedores (
