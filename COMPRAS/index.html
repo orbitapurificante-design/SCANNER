@@ -395,7 +395,7 @@ body.printing #printArea{display:block}
     <div class="mTit"><span id="mCCTit">Fornecedor</span><button class="mClose" onclick="fecharModal('mContaCorrente')">✕</button></div>
 
     <div class="card" style="box-shadow:none;border:1.5px solid rgba(26,74,138,.1);padding:12px 14px;margin-bottom:12px">
-      <div style="font-size:12px;color:var(--mu)" id="mCCInfo"></div>
+      <div style="font-size:12px;color:var(--mu);overflow-x:auto" id="mCCInfo"></div>
       <button class="bS" style="margin-top:10px;margin-bottom:0" onclick="editarFornecedorAtual()">✎ Editar dados do fornecedor</button>
     </div>
 
@@ -509,8 +509,15 @@ body.printing #printArea{display:block}
     <input type="hidden" id="mLiqFornecedorId">
     <div style="font-size:12px;color:var(--mu);margin-bottom:12px" id="mLiqInfo"></div>
 
+    <label class="lbl">Documentos a Liquidar</label>
+    <div id="mLiqDocumentos" style="margin-bottom:8px"></div>
+    <div id="mLiqJuntarArea" style="margin-bottom:14px">
+      <button class="bS" style="margin-bottom:8px" onclick="toggleJuntarFatura()">➕ Juntar Fatura</button>
+      <div id="mLiqPickerJuntar" style="display:none" class="ncList"></div>
+    </div>
+
     <div style="background:#f7f7f7;padding:12px;border-radius:10px;margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Valor do Documento</span><b id="mLiqValorTotal">0€</b></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Valor a Liquidar</span><b id="mLiqValorTotal">0€</b></div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Já Atribuído</span><b id="mLiqValorPago" style="color:var(--gr)">0€</b></div>
       <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800"><span>Falta</span><b id="mLiqValorFalta" style="color:var(--r)">0€</b></div>
     </div>
@@ -548,7 +555,6 @@ body.printing #printArea{display:block}
       <div id="lqBlocoValorData">
         <label class="lbl">Valor (€)</label>
         <input class="inp" id="lqValor" type="number" step="0.01" placeholder="0.00">
-        <div style="font-size:11px;color:var(--mu);margin:-6px 0 10px">Se o valor for maior que o em falta, a sobra é aplicada automaticamente a outras faturas em aberto deste fornecedor.</div>
 
         <label class="lbl">Data</label>
         <input class="inp" id="lqData" type="date">
@@ -728,11 +734,21 @@ function valorDoc(f) {
   return f.tipo === 'NC' ? -v : v;
 }
 
+// Marcações internas (não representam dinheiro novo, servem só para assinalar
+// que um documento foi liquidado através de outro pagamento/nota já contabilizado):
+// - "NOTA DE CRÉDITO (aplicada)": nota de crédito usada
+// - "... (marcação)": fatura liquidada em conjunto com outra através de um único
+//   pagamento visível (ver adicionarComponenteLiquidacao)
+// Estas entradas NÃO contam para o total pago nem aparecem no extrato/relatório,
+// mas contam para o estado "pago" de cada documento individualmente.
+function ehMarcacaoInterna(p) {
+  const f = p.forma_pagamento || '';
+  return f === 'NOTA DE CRÉDITO (aplicada)' || f.endsWith('(marcação)');
+}
+
 function saldoFornecedor(fornId) {
   const totFat = DB_FAT.filter(f=>f.fornecedor_id===fornId).reduce((s,f)=>s+valorDoc(f),0);
-  // Pagamentos que são apenas "marcação de uso" de nota de crédito não contam aqui,
-  // porque o valor da NC já foi descontado acima em totFat (evita contar a dedução 2x)
-  const totPag = DB_PAG.filter(p=>p.fornecedor_id===fornId && p.forma_pagamento!=='NOTA DE CRÉDITO (aplicada)').reduce((s,p)=>s+Number(p.valor||0),0);
+  const totPag = DB_PAG.filter(p=>p.fornecedor_id===fornId && !ehMarcacaoInterna(p)).reduce((s,p)=>s+Number(p.valor||0),0);
   return { totFat, totPag, saldo: totFat - totPag };
 }
 
@@ -758,7 +774,7 @@ function renderStats() {
   DB_FORN.forEach(f => { divida += saldoFornecedor(f.id).saldo; });
   document.getElementById('stDivida').textContent = fmt(divida);
   const inicioMes = HOJE.slice(0,7);
-  const pagoMes = DB_PAG.filter(p => (p.data||'').slice(0,7) === inicioMes && p.forma_pagamento!=='NOTA DE CRÉDITO (aplicada)').reduce((s,p)=>s+Number(p.valor||0),0);
+  const pagoMes = DB_PAG.filter(p => (p.data||'').slice(0,7) === inicioMes && !ehMarcacaoInterna(p)).reduce((s,p)=>s+Number(p.valor||0),0);
   document.getElementById('stPagoMes').textContent = fmt(pagoMes);
 }
 
@@ -1146,7 +1162,10 @@ function imprimirSaldosFornecedores() {
 function imprimirNibsFornecedores() {
   const comNib = DB_FORN.filter(c => (c.nib||'').trim());
   if(comNib.length === 0) return toast('⚠️ Nenhum fornecedor com NIB registado');
-  const linhas = comNib.map(c => `<div class="printRow"><b>${esc(c.nome_empresa)}</b><span>${esc(c.nib)}</span></div>`).join('');
+  const linhas = comNib.map(c => `<div style="padding:10px 0;border-bottom:1px solid #eee">
+    <div style="font-weight:700;font-size:13px;margin-bottom:3px">${esc(c.nome_empresa)}</div>
+    <div style="font-weight:800;font-size:16px;white-space:nowrap;letter-spacing:0.3px">${esc(c.nib)}</div>
+  </div>`).join('');
   const html = `<div class="printTit">MARINHA · Fornecedores</div>
     <div class="printSub">Listagem de NIB · ${new Date().toLocaleDateString('pt-PT')}</div>
     ${linhas}`;
@@ -1250,7 +1269,7 @@ function abrirContaCorrente(fornId) {
   FORN_ATUAL = fornId;
   document.getElementById('mCCTit').textContent = c.nome_empresa;
   document.getElementById('mCCInfo').innerHTML =
-    `${esc(c.nome_comercial||'—')}${c.contato_comercial ? ' · '+esc(c.contato_comercial) : ''}${c.nif ? '<br>NIF: '+esc(c.nif) : ''}${c.nib ? '<br><span style="font-size:16px;font-weight:800;color:var(--n)">NIB: '+esc(c.nib)+'</span>' : ''}`;
+    `${esc(c.nome_comercial||'—')}${c.contato_comercial ? ' · '+esc(c.contato_comercial) : ''}${c.nif ? '<br>NIF: '+esc(c.nif) : ''}${c.nib ? '<br><span style="font-size:15px;font-weight:800;color:var(--n);white-space:nowrap;display:inline-block;margin-top:2px">NIB: '+esc(c.nib)+'</span>' : ''}`;
   renderContaCorrente();
   abrirModal('mContaCorrente');
 }
@@ -1266,7 +1285,7 @@ function renderContaCorrente() {
   DB_FAT.filter(f=>f.fornecedor_id===FORN_ATUAL).forEach(f => movs.push({ tipo:'fatura', data:f.data, obj:f }));
   // As "marcações" de nota de crédito aplicada não aparecem como linha própria —
   // já ficam representadas pelo visto na própria NC e no documento pago.
-  DB_PAG.filter(p=>p.fornecedor_id===FORN_ATUAL && p.forma_pagamento!=='NOTA DE CRÉDITO (aplicada)').forEach(p => movs.push({ tipo:'pagamento', data:p.data, obj:p }));
+  DB_PAG.filter(p=>p.fornecedor_id===FORN_ATUAL && !ehMarcacaoInterna(p)).forEach(p => movs.push({ tipo:'pagamento', data:p.data, obj:p }));
   movs.sort((a,b) => (b.data||'').localeCompare(a.data||''));
 
   const el = document.getElementById('listaMovimentos');
@@ -1291,7 +1310,7 @@ function renderContaCorrente() {
     } else {
       const p = m.obj;
       return `<div class="fatRow">
-        <div class="fatBadge pag">${p.forma_pagamento==='DINHEIRO'?'💶':(p.forma_pagamento==='DESCONTO FINANCEIRO'?'➗':((p.forma_pagamento||'').startsWith('NOTA DE CRÉDITO')?'🧾':'🏦'))}</div>
+        <div class="fatBadge pag">${iconeForma(p.forma_pagamento)}</div>
         <div class="fatInfo">
           <div class="fatNome">${esc(p.forma_pagamento||'')}${p.banco ? ' · '+esc(p.banco) : ''}</div>
           <div class="fatSub">${p.data||''} · Pagamento</div>
@@ -1451,10 +1470,22 @@ function setBanco(v) {
 // (dinheiro, transferência, desconto financeiro, nota de crédito)
 // até perfazer o valor total do documento
 // ═══════════════════════════════════════════
+function iconeForma(forma) {
+  const f = forma || '';
+  if(f.startsWith('DINHEIRO')) return '💶';
+  if(f.startsWith('DESCONTO FINANCEIRO')) return '➗';
+  if(f.startsWith('NOTA DE CRÉDITO')) return '🧾';
+  return '🏦';
+}
+
 function labelComponente(p) {
   if(p.forma_pagamento === 'NOTA DE CRÉDITO (aplicada)') {
     const nc = DB_FAT.find(x=>x.id===p.banco);
     return 'Nota de Crédito' + (nc ? ' ' + (nc.numero||'') : '');
+  }
+  if((p.forma_pagamento||'').endsWith('(marcação)')) {
+    const formaBase = p.forma_pagamento.replace(' (marcação)', '');
+    return formaBase.charAt(0) + formaBase.slice(1).toLowerCase() + ' · liquidada com outro documento';
   }
   if(p.forma_pagamento === 'TRANSFERÊNCIA') return 'Transferência' + (p.banco ? ' · '+esc(p.banco) : '');
   return p.forma_pagamento || 'Pagamento';
@@ -1533,6 +1564,61 @@ async function aplicarComponenteNC(ncId) {
   } catch(e) { toast('❌ Erro: ' + e.message); }
 }
 
+let LIQ_JUNTAS = []; // ids das faturas juntadas manualmente à liquidação atual (além da principal)
+
+function renderLiquidacaoDocumentos(grupo) {
+  const el = document.getElementById('mLiqDocumentos');
+  el.innerHTML = grupo.map((f, i) => `<div class="fatRow">
+    <div class="fatBadge ${f.tipo==='NC'?'nc':''}">${esc(f.tipo||'FT')}</div>
+    <div class="fatInfo">
+      <div class="fatNome">${esc(f.numero||'s/ nº')}${i===0?' <span style="color:var(--mu);font-weight:400">(principal)</span>':''}</div>
+      <div class="fatSub">${f.data||''} · ${fmtDoc(f)}</div>
+    </div>
+    ${i>0 ? `<button class="movDel" onclick="removerJuntada('${f.id}')">✕</button>` : ''}
+  </div>`).join('');
+}
+
+function toggleJuntarFatura() {
+  const el = document.getElementById('mLiqPickerJuntar');
+  const abrir = el.style.display === 'none';
+  el.style.display = abrir ? 'block' : 'none';
+  if(abrir) renderPickerJuntarFatura();
+}
+
+function renderPickerJuntarFatura() {
+  const el = document.getElementById('mLiqPickerJuntar');
+  const faturaId = document.getElementById('mLiqFaturaId').value;
+  const fornId = document.getElementById('mLiqFornecedorId').value;
+  const elegiveis = DB_FAT.filter(f =>
+    f.fornecedor_id === fornId && f.tipo !== 'NC' && f.id !== faturaId &&
+    !LIQ_JUNTAS.includes(f.id) && !docPago(f)
+  ).sort((a,b) => (a.data||'').localeCompare(b.data||''));
+
+  if(elegiveis.length === 0) {
+    el.innerHTML = '<div class="ncEmpty">Sem outras faturas pendentes deste fornecedor</div>';
+    return;
+  }
+  el.innerHTML = elegiveis.map(f => `<div class="fatRow">
+    <div class="fatBadge">${esc(f.tipo||'FT')}</div>
+    <div class="fatInfo">
+      <div class="fatNome">${esc(f.numero||'s/ nº')}</div>
+      <div class="fatSub">${f.data||''} · ${fmtDoc(f)}</div>
+    </div>
+    <button class="bS" style="width:auto;margin-bottom:0;padding:8px 14px" onclick="juntarFatura('${f.id}')">Juntar</button>
+  </div>`).join('');
+}
+
+function juntarFatura(id) {
+  if(!LIQ_JUNTAS.includes(id)) LIQ_JUNTAS.push(id);
+  document.getElementById('mLiqPickerJuntar').style.display = 'none';
+  renderLiquidacao(document.getElementById('mLiqFaturaId').value);
+}
+
+function removerJuntada(id) {
+  LIQ_JUNTAS = LIQ_JUNTAS.filter(x=>x!==id);
+  renderLiquidacao(document.getElementById('mLiqFaturaId').value);
+}
+
 function renderLiquidacao(faturaId) {
   const f = DB_FAT.find(x=>x.id===faturaId);
   if(!f) return;
@@ -1541,21 +1627,26 @@ function renderLiquidacao(faturaId) {
   document.getElementById('mLiqInfo').innerHTML =
     `<b>${esc(nomeFornecedor(f.fornecedor_id))}</b><br>${esc(f.tipo==='NC'?'Nota de Crédito':(f.tipo||'FT'))} ${esc(f.numero||'')} · ${f.data||''}`;
 
-  const valorTotal = Number(f.valor||0);
-  const jaPago = pagoDeFatura(f.id);
+  const grupo = [f, ...LIQ_JUNTAS.map(id=>DB_FAT.find(x=>x.id===id)).filter(Boolean)];
+  renderLiquidacaoDocumentos(grupo);
+
+  const valorTotal = grupo.reduce((s,d)=>s+Number(d.valor||0),0);
+  const jaPago = grupo.reduce((s,d)=>s+pagoDeFatura(d.id),0);
   const falta = Math.max(0, valorTotal - jaPago);
 
   document.getElementById('mLiqValorTotal').textContent = fmt(valorTotal);
   document.getElementById('mLiqValorPago').textContent = fmt(jaPago);
   document.getElementById('mLiqValorFalta').textContent = fmt(falta);
 
-  const componentes = DB_PAG.filter(p=>p.fatura_id===f.id);
+  // Componentes já registados: os da fatura principal (linha visível) + marcações
+  // internas dos documentos juntados (para se perceber o que já foi atribuído)
+  const componentes = DB_PAG.filter(p => grupo.some(d=>d.id===p.fatura_id));
   const elComp = document.getElementById('mLiqComponentes');
   if(componentes.length===0) {
     elComp.innerHTML = '<div style="text-align:center;padding:10px;color:var(--mu);font-size:12px">Ainda sem pagamentos associados</div>';
   } else {
     elComp.innerHTML = componentes.map(p => `<div class="fatRow">
-      <div class="fatBadge pag">${p.forma_pagamento==='DINHEIRO'?'💶':(p.forma_pagamento==='DESCONTO FINANCEIRO'?'➗':((p.forma_pagamento||'').startsWith('NOTA DE CRÉDITO')?'🧾':'🏦'))}</div>
+      <div class="fatBadge pag">${iconeForma(p.forma_pagamento)}</div>
       <div class="fatInfo">
         <div class="fatNome">${labelComponente(p)}</div>
         <div class="fatSub">${p.data||''}</div>
@@ -1588,36 +1679,28 @@ async function adicionarComponenteLiquidacao() {
   const fAtual = DB_FAT.find(x=>x.id===faturaId);
   const faltaAtual = fAtual ? Math.max(0, Number(fAtual.valor||0) - pagoDeFatura(fAtual.id)) : valorInserido;
 
-  const registos = [];
-  if(valorInserido <= faltaAtual + 0.005) {
-    // valor cabe todo no documento atual
-    registos.push({ fornecedor_id: fornecedorId, fatura_id: faturaId||null, forma_pagamento: forma, banco, valor: valorInserido, data });
-  } else {
-    // valor a mais: sobra é distribuída por outras faturas em aberto do mesmo fornecedor
-    let restante = valorInserido;
-    if(faltaAtual > 0.005) {
-      registos.push({ fornecedor_id: fornecedorId, fatura_id: faturaId||null, forma_pagamento: forma, banco, valor: faltaAtual, data });
-      restante -= faltaAtual;
-    }
-    const outrasPendentes = DB_FAT.filter(f =>
-      f.id !== faturaId && f.fornecedor_id === fornecedorId && f.tipo !== 'NC' && !docPago(f)
-    ).sort((a,b) => (a.data||'').localeCompare(b.data||''));
+  // Linha visível: sempre uma só, associada ao documento principal, com o valor
+  // exato que foi introduzido — é a que aparece no extrato/relatório.
+  const registos = [{ fornecedor_id: fornecedorId, fatura_id: faturaId||null, forma_pagamento: forma, banco, valor: valorInserido, data }];
 
-    let nAplicadas = 0;
-    for(const f of outrasPendentes) {
+  // Se sobrar valor além do que falta no documento principal, é atribuído às
+  // faturas juntadas manualmente (nunca a faturas que não foram escolhidas).
+  // Estas entradas são apenas marcações internas: não aparecem no extrato nem
+  // somam ao total pago (já contam através da linha visível acima).
+  let restante = valorInserido - faltaAtual;
+  let nJuntas = 0;
+  if(restante > 0.005 && LIQ_JUNTAS.length) {
+    for(const id of LIQ_JUNTAS) {
       if(restante <= 0.005) break;
-      const faltaOutra = Math.max(0, Number(f.valor||0) - pagoDeFatura(f.id));
-      if(faltaOutra <= 0.005) continue;
-      const aplicar = Math.min(restante, faltaOutra);
-      registos.push({ fornecedor_id: fornecedorId, fatura_id: f.id, forma_pagamento: forma, banco, valor: aplicar, data });
+      const doc = DB_FAT.find(x=>x.id===id);
+      if(!doc) continue;
+      const faltaDoc = Math.max(0, Number(doc.valor||0) - pagoDeFatura(doc.id));
+      if(faltaDoc <= 0.005) continue;
+      const aplicar = Math.min(restante, faltaDoc);
+      registos.push({ fornecedor_id: fornecedorId, fatura_id: doc.id, forma_pagamento: forma + ' (marcação)', banco: null, valor: aplicar, data });
       restante -= aplicar;
-      nAplicadas++;
+      nJuntas++;
     }
-    if(restante > 0.005) {
-      // não há mais faturas em aberto para aplicar a sobra — fica como adiantamento
-      registos.push({ fornecedor_id: fornecedorId, fatura_id: null, forma_pagamento: forma, banco, valor: restante, data });
-    }
-    if(nAplicadas > 0) toast(`✅ Pagamento aplicado a ${nAplicadas+1} documento(s)`);
   }
 
   try {
@@ -1625,7 +1708,8 @@ async function adicionarComponenteLiquidacao() {
       const { error } = await db.from('pagamentos_fornecedores').insert(r);
       if(error) throw error;
     }
-    if(registos.length === 1) toast('✅ Pagamento adicionado');
+    toast(nJuntas>0 ? `✅ Pagamento aplicado a ${nJuntas+1} documentos` : '✅ Pagamento adicionado');
+    LIQ_JUNTAS = [];
     await carregarTudo();
     renderLiquidacao(faturaId);
     if(FORN_ATUAL) renderContaCorrente();
@@ -1644,9 +1728,11 @@ async function apagarComponenteLiquidacao(pagId) {
     if(FORN_ATUAL) renderContaCorrente();
   } catch(e) { toast('❌ Erro: ' + e.message); }
 }
+
 function abrirPagamento(faturaId) {
   const f = DB_FAT.find(x=>x.id===faturaId);
   if(!f) return;
+  LIQ_JUNTAS = [];
   setLiqForma('TRANSFERÊNCIA');
   setLiqBanco('BPI');
   renderLiquidacao(faturaId);
@@ -1756,7 +1842,7 @@ function obterGruposRelatorio() {
 
   if(!tipoFiltro || tipoFiltro === 'PAGAMENTO') {
     DB_PAG.filter(p => {
-      if(p.forma_pagamento==='NOTA DE CRÉDITO (aplicada)') return false; // marcação interna, não é um pagamento real
+      if(ehMarcacaoInterna(p)) return false; // marcação interna, não é um pagamento real
       if(!dentroPeriodo(p.data||'')) return false;
       if(fornFiltro && p.fornecedor_id !== fornFiltro) return false;
       return true;
