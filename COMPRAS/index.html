@@ -19,7 +19,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--n:#0a1628;--s:#1a4a8a;--g:#c9a84c;--gl:#e8c97a;--bg:#f4f1ec;--mu:#7a8a9a;--gr:#27ae60;--r:#e74c3c;--cr:#f5f0e8}
 html,body{overscroll-behavior:none}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-height:100vh}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-height:100vh;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"lnum" 1}
 
 /* PIN */
 #ePin{position:fixed;inset:0;z-index:1000;background:linear-gradient(160deg,var(--n),var(--s));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px}
@@ -666,7 +666,7 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('v'), 2400);
 }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fmt(v){ return (Number(v)||0).toFixed(2).replace('.',',') + '€'; }
+function fmt(v){ return (Number(v)||0).toLocaleString('pt-PT', {minimumFractionDigits:2, maximumFractionDigits:2}) + '€'; }
 function fmtDoc(f){ return fmt(valorDoc(f)); }
 
 // ═══════════════════════════════════════════
