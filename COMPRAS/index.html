@@ -666,7 +666,14 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('v'), 2400);
 }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fmt(v){ return (Number(v)||0).toLocaleString('pt-PT', {minimumFractionDigits:2, maximumFractionDigits:2}) + '€'; }
+function fmt(v){
+  const n = Number(v)||0;
+  const neg = n < 0;
+  const abs = Math.abs(n).toFixed(2);
+  const partes = abs.split('.');
+  const inteiro = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (neg?'-':'') + inteiro + ',' + partes[1] + '€';
+}
 function fmtDoc(f){ return fmt(valorDoc(f)); }
 
 // ═══════════════════════════════════════════
