@@ -89,7 +89,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 /* Faturas / movimentos */
 .fatRow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(0,0,0,.06)}
 .fatRow:last-child{border-bottom:none}
-.fatBadge{flex-shrink:0;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;background:var(--r)}
+.fatBadge{flex-shrink:0;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;background:var(--s)}
+.fatBadge.nc{background:var(--r)}
 .fatBadge.pag{background:var(--gr)}
 .fatInfo{flex:1;min-width:0}
 .fatNome{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -134,6 +135,10 @@ body.printing #printArea{display:block;padding:20px}
 
 .ncList{max-height:260px;overflow-y:auto;margin-bottom:10px}
 .ncEmpty{text-align:center;padding:16px;color:var(--mu);font-size:13px}
+
+.relGrupo{margin-bottom:18px}
+.relGrupoTit{font-weight:800;font-size:14px;padding:8px 4px;border-bottom:2px solid var(--n);margin-bottom:4px;color:var(--n)}
+.relGrupoTotal{display:flex;justify-content:space-between;padding:8px 4px;font-weight:800;font-size:13px;border-top:1px solid #ddd;margin-top:4px}
 </style>
 </head>
 <body>
@@ -347,15 +352,9 @@ body.printing #printArea{display:block;padding:20px}
         </select>
       </div>
 
-      <div class="stat">
-        <div class="sItem"><div class="sVal" id="relTotal">0€</div><div class="sLbl">Total</div></div>
-        <div class="sItem"><div class="sVal" style="color:var(--gr)" id="relPagoV">0€</div><div class="sLbl">Pago</div></div>
-        <div class="sItem"><div class="sVal" style="color:var(--r)" id="relPendV">0€</div><div class="sLbl">Pendente</div></div>
-      </div>
-
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div class="ct" style="margin-bottom:0">Documentos</div>
+          <div class="ct" style="margin-bottom:0">Extrato</div>
           <button onclick="imprimirRelatorio()" class="no-print" style="padding:5px 10px;background:var(--n);border:none;color:#fff;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🖨</button>
         </div>
         <div id="listaRelatorio"></div>
@@ -620,7 +619,7 @@ async function init() {
   document.getElementById('fScanData').value = HOJE;
   document.getElementById('fFatData').value = HOJE;
   document.getElementById('fPagData').value = HOJE;
-  document.getElementById('relDe').value = HOJE.slice(0,8)+'01';
+  document.getElementById('relDe').value = '2026-01-01';
   document.getElementById('relAte').value = HOJE;
   await carregarTudo();
 }
@@ -669,6 +668,18 @@ function saldoFornecedor(fornId) {
 
 function pagoDeFatura(fatId) {
   return DB_PAG.filter(p=>p.fatura_id===fatId).reduce((s,p)=>s+Number(p.valor||0),0);
+}
+
+// Uma NC considera-se usada quando existe uma marcação de aplicação que a referencia
+function ncFoiAplicada(ncId) {
+  return DB_PAG.some(p => p.forma_pagamento==='NOTA DE CRÉDITO (aplicada)' && p.banco===ncId);
+}
+
+// Estado "pago/usado" de um documento: para NC vem da marcação de aplicação,
+// para os restantes documentos vem da soma dos pagamentos associados
+function docPago(f) {
+  if(f.tipo === 'NC') return ncFoiAplicada(f.id);
+  return pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
 }
 
 function renderStats() {
@@ -1034,13 +1045,16 @@ function _imprimirArea(html) {
 
 function imprimirSaldosFornecedores() {
   if(DB_FORN.length === 0) return toast('⚠️ Sem fornecedores');
+  let totalGeral = 0;
   const linhas = DB_FORN.map(c => {
     const { saldo } = saldoFornecedor(c.id);
+    totalGeral += saldo;
     return `<div class="printRow"><b>${esc(c.nome_empresa)}</b><span>${fmt(saldo)}</span></div>`;
   }).join('');
   const html = `<div class="printTit">MARINHA · Fornecedores</div>
     <div class="printSub">Saldos atuais · ${new Date().toLocaleDateString('pt-PT')}</div>
-    ${linhas}`;
+    ${linhas}
+    <div class="printRow" style="border-top:2px solid #333;border-bottom:none;margin-top:6px;padding-top:10px;font-size:15px"><b>TOTAL GERAL</b><b>${fmt(totalGeral)}</b></div>`;
   _imprimirArea(html);
 }
 
@@ -1165,7 +1179,9 @@ function renderContaCorrente() {
 
   const movs = [];
   DB_FAT.filter(f=>f.fornecedor_id===FORN_ATUAL).forEach(f => movs.push({ tipo:'fatura', data:f.data, obj:f }));
-  DB_PAG.filter(p=>p.fornecedor_id===FORN_ATUAL).forEach(p => movs.push({ tipo:'pagamento', data:p.data, obj:p }));
+  // As "marcações" de nota de crédito aplicada não aparecem como linha própria —
+  // já ficam representadas pelo visto na própria NC e no documento pago.
+  DB_PAG.filter(p=>p.fornecedor_id===FORN_ATUAL && p.forma_pagamento!=='NOTA DE CRÉDITO (aplicada)').forEach(p => movs.push({ tipo:'pagamento', data:p.data, obj:p }));
   movs.sort((a,b) => (b.data||'').localeCompare(a.data||''));
 
   const el = document.getElementById('listaMovimentos');
@@ -1176,15 +1192,15 @@ function renderContaCorrente() {
   el.innerHTML = movs.map(m => {
     if(m.tipo === 'fatura') {
       const f = m.obj;
-      const pago = pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
+      const pago = docPago(f);
       return `<div class="fatRow">
-        <div class="fatBadge">${esc(f.tipo||'FT')}</div>
+        <div class="fatBadge ${f.tipo==='NC'?'nc':''}">${esc(f.tipo||'FT')}</div>
         <div class="fatInfo">
           <div class="fatNome">${esc(f.numero||'s/ nº')}</div>
           <div class="fatSub">${f.data||''} · ${f.tipo==='NC'?'Nota de Crédito':'Fatura'}</div>
         </div>
         <div class="fatVal" style="${f.tipo==='NC'?'color:var(--r)':''}">${fmtDoc(f)}</div>
-        <div class="fatPago ${pago?'sim':'nao'}" onclick="abrirPagamento('${f.id}')">${pago?'✓':''}</div>
+        <div class="fatPago ${pago?'sim':'nao'}" onclick="${f.tipo==='NC'?'':`abrirPagamento('${f.id}')`}">${pago?'✓':''}</div>
         <button class="movEdit" onclick="editarFatura('${f.id}')">✎</button>
       </div>`;
     } else {
@@ -1221,7 +1237,7 @@ function nomeFornecedor(id) {
 function renderFaturasForn() {
   const q = (document.getElementById('searchFat').value||'').toLowerCase();
   let lista = DB_FAT.filter(f => {
-    const pago = pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
+    const pago = docPago(f);
     if(FILTRO_FAT===1 && pago) return false;
     if(FILTRO_FAT===2 && !pago) return false;
     const texto = (nomeFornecedor(f.fornecedor_id)+' '+(f.numero||'')).toLowerCase();
@@ -1233,15 +1249,15 @@ function renderFaturasForn() {
     return;
   }
   el.innerHTML = lista.map(f => {
-    const pago = pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
+    const pago = docPago(f);
     return `<div class="fatRow">
-      <div class="fatBadge">${esc(f.tipo||'FT')}</div>
+      <div class="fatBadge ${f.tipo==='NC'?'nc':''}">${esc(f.tipo||'FT')}</div>
       <div class="fatInfo" onclick="editarFatura('${f.id}')" style="cursor:pointer">
         <div class="fatNome">${esc(nomeFornecedor(f.fornecedor_id))}</div>
         <div class="fatSub">${esc(f.numero||'s/ nº')} · ${f.data||''}</div>
       </div>
       <div class="fatVal" style="${f.tipo==='NC'?'color:var(--r)':''}">${fmtDoc(f)}</div>
-      <div class="fatPago ${pago?'sim':'nao'}" onclick="abrirPagamento('${f.id}')">${pago?'✓':''}</div>
+      <div class="fatPago ${pago?'sim':'nao'}" onclick="${f.tipo==='NC'?'':`abrirPagamento('${f.id}')`}">${pago?'✓':''}</div>
     </div>`;
   }).join('');
 }
@@ -1351,7 +1367,7 @@ function renderListaNCDisponiveis() {
     f.tipo === 'NC' &&
     f.fornecedor_id === fornId &&
     f.id !== faturaAtualId &&
-    pagoDeFatura(f.id) < Number(f.valor||0) - 0.005
+    !ncFoiAplicada(f.id)
   ).sort((a,b) => (a.data||'').localeCompare(b.data||''));
 
   if(ncs.length === 0) {
@@ -1359,7 +1375,7 @@ function renderListaNCDisponiveis() {
     return;
   }
   el.innerHTML = ncs.map(nc => `<div class="fatRow">
-    <div class="fatBadge">NC</div>
+    <div class="fatBadge nc">NC</div>
     <div class="fatInfo">
       <div class="fatNome">${esc(nc.numero||'s/ nº')}</div>
       <div class="fatSub">${nc.data||''} · ${fmt(nc.valor)}</div>
@@ -1373,34 +1389,23 @@ async function aplicarNotaCredito(ncId) {
   if(!nc) return;
   const faturaId = document.getElementById('mPagFaturaId').value;
   const fornecedorId = document.getElementById('mPagFornecedorId').value;
-  const faturaAlvo = DB_FAT.find(x=>x.id===faturaId);
   const valorNC = Number(nc.valor||0);
   if(!confirm(`Aplicar a nota de crédito ${nc.numero||''} (${fmt(valorNC)}) a este documento?`)) return;
 
-  // Nota: o valor da NC já é descontado automaticamente no saldo total do fornecedor
-  // (é negativo). Estes registos servem apenas para marcar a NC como usada e para
-  // assinalar o desconto no documento que está a ser pago — não somam ao total pago.
+  // Um único registo: dá baixa no documento a pagar (fatura_id) e, através do
+  // campo "banco" a referenciar o id da NC, marca também a própria NC como usada.
+  // Não soma ao total pago (o valor da NC já é descontado no saldo do fornecedor)
+  // e não aparece como linha separada no extrato — só os vistos mudam.
   try {
-    const { error: e1 } = await db.from('pagamentos_fornecedores').insert({
+    const { error } = await db.from('pagamentos_fornecedores').insert({
       fornecedor_id: fornecedorId,
       fatura_id: faturaId || null,
       forma_pagamento: 'NOTA DE CRÉDITO (aplicada)',
-      banco: 'NC ' + (nc.numero||''),
+      banco: nc.id,
       valor: valorNC,
       data: HOJE
     });
-    if(e1) throw e1;
-
-    // Marca a própria nota de crédito como usada (passa a aparecer com visto de paga)
-    const { error: e2 } = await db.from('pagamentos_fornecedores').insert({
-      fornecedor_id: fornecedorId,
-      fatura_id: nc.id,
-      forma_pagamento: 'NOTA DE CRÉDITO (aplicada)',
-      banco: faturaAlvo ? ('Aplicada a ' + (faturaAlvo.tipo||'') + ' ' + (faturaAlvo.numero||'')) : null,
-      valor: valorNC,
-      data: HOJE
-    });
-    if(e2) throw e2;
+    if(error) throw error;
 
     toast('✅ Nota de crédito aplicada');
     fecharModal('mPagamento');
@@ -1537,65 +1542,68 @@ function renderRelatorio() {
 
   if(!tipoFiltro || tipoFiltro === 'PAGAMENTO') {
     DB_PAG.filter(p => {
+      if(p.forma_pagamento==='NOTA DE CRÉDITO (aplicada)') return false; // marcação interna, não é um pagamento real
       if(!dentroPeriodo(p.data||'')) return false;
       if(fornFiltro && p.fornecedor_id !== fornFiltro) return false;
       return true;
     }).forEach(p => itens.push({ cat:'pag', obj:p, forn: nomeFornecedor(p.fornecedor_id), data: p.data||'' }));
   }
 
-  // Ordenado por fornecedor, depois por data
-  itens.sort((a,b) => {
-    const n = a.forn.localeCompare(b.forn, 'pt');
-    if(n !== 0) return n;
-    return (a.data||'').localeCompare(b.data||'');
-  });
-
-  let total = 0, pagoV = 0, pendV = 0;
-  itens.forEach(it => {
-    if(it.cat !== 'doc') return;
-    const f = it.obj;
-    const v = valorDoc(f);
-    const pago = pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
-    total += v;
-    if(pago) pagoV += v; else pendV += v;
-  });
-
-  document.getElementById('relTotal').textContent = fmt(total);
-  document.getElementById('relPagoV').textContent = fmt(pagoV);
-  document.getElementById('relPendV').textContent = fmt(pendV);
-
   const el = document.getElementById('listaRelatorio');
   if(itens.length===0){
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu);font-size:13px">Sem documentos no período/filtro selecionado</div>';
     return;
   }
-  el.innerHTML = itens.map(it => {
-    if(it.cat === 'doc') {
-      const f = it.obj;
-      const pago = pagoDeFatura(f.id) >= Number(f.valor||0) - 0.005;
-      return `<div class="relRow">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.forn)}</div>
-          <div style="color:var(--mu);font-size:11px">${esc(f.tipo||'FT')} ${esc(f.numero||'')} · ${f.data||''}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-weight:800;${f.tipo==='NC'?'color:var(--r)':''}">${fmtDoc(f)}</div>
-          <span class="relPago ${pago?'s':'n'}">${pago?'PAGO':'PENDENTE'}</span>
-        </div>
-      </div>`;
-    } else {
-      const p = it.obj;
-      return `<div class="relRow">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.forn)}</div>
-          <div style="color:var(--mu);font-size:11px">${esc(p.forma_pagamento||'PAGAMENTO')}${p.banco?' · '+esc(p.banco):''} · ${p.data||''}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-weight:800;color:var(--gr)">−${fmt(p.valor)}</div>
-          <span class="relPago s">PAGAMENTO</span>
-        </div>
-      </div>`;
-    }
+
+  // Agrupado por fornecedor (nome), depois cada grupo ordenado por data
+  const grupos = {};
+  itens.forEach(it => {
+    if(!grupos[it.forn]) grupos[it.forn] = [];
+    grupos[it.forn].push(it);
+  });
+  const nomesForn = Object.keys(grupos).sort((a,b) => a.localeCompare(b, 'pt'));
+
+  el.innerHTML = nomesForn.map(nome => {
+    const grupo = grupos[nome].sort((a,b) => (a.data||'').localeCompare(b.data||''));
+    let totalGrupo = 0;
+
+    const linhas = grupo.map(it => {
+      if(it.cat === 'doc') {
+        const f = it.obj;
+        const pago = docPago(f);
+        const v = valorDoc(f);
+        totalGrupo += v;
+        return `<div class="relRow">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.tipo||'FT')} ${esc(f.numero||'')}</div>
+            <div style="color:var(--mu);font-size:11px">${f.data||''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-weight:800;${f.tipo==='NC'?'color:var(--r)':''}">${fmtDoc(f)}</div>
+            <span class="relPago ${pago?'s':'n'}">${pago?'PAGO':'PENDENTE'}</span>
+          </div>
+        </div>`;
+      } else {
+        const p = it.obj;
+        totalGrupo -= Number(p.valor||0);
+        return `<div class="relRow">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.forma_pagamento||'PAGAMENTO')}${p.banco?' · '+esc(p.banco):''}</div>
+            <div style="color:var(--mu);font-size:11px">${p.data||''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-weight:800;color:var(--gr)">−${fmt(p.valor)}</div>
+            <span class="relPago s">PAGAMENTO</span>
+          </div>
+        </div>`;
+      }
+    }).join('');
+
+    return `<div class="relGrupo">
+      <div class="relGrupoTit">${esc(nome)}</div>
+      ${linhas}
+      <div class="relGrupoTotal"><span>Total ${esc(nome)}</span><span>${fmt(totalGrupo)}</span></div>
+    </div>`;
   }).join('');
 }
 
