@@ -508,6 +508,7 @@ body.printing #printArea{display:block}
     <input type="hidden" id="mLiqFaturaId">
     <input type="hidden" id="mLiqFornecedorId">
     <div style="font-size:12px;color:var(--mu);margin-bottom:12px" id="mLiqInfo"></div>
+    <div id="mLiqGrupoInfo" style="display:none;margin-bottom:12px;padding:8px 10px;background:#fff7e6;border-radius:8px;color:#8a6300;font-size:11px"></div>
 
     <label class="lbl">Documentos a Liquidar</label>
     <div id="mLiqDocumentos" style="margin-bottom:8px"></div>
@@ -1162,13 +1163,15 @@ function imprimirSaldosFornecedores() {
 function imprimirNibsFornecedores() {
   const comNib = DB_FORN.filter(c => (c.nib||'').trim());
   if(comNib.length === 0) return toast('⚠️ Nenhum fornecedor com NIB registado');
-  const linhas = comNib.map(c => `<div style="padding:10px 0;border-bottom:1px solid #eee">
-    <div style="font-weight:700;font-size:13px;margin-bottom:3px">${esc(c.nome_empresa)}</div>
-    <div style="font-weight:800;font-size:16px;white-space:nowrap;letter-spacing:0.3px">${esc(c.nib)}</div>
+  const linhas = comNib.map(c => `<div class="fatRow" style="padding:14px 4px">
+    <div class="fatInfo">
+      <div class="fatNome">${esc(c.nome_empresa)}</div>
+      <div class="fatSub" style="font-weight:800;font-size:15px;color:var(--n);white-space:nowrap;letter-spacing:0.3px;margin-top:2px">${esc(c.nib)}</div>
+    </div>
   </div>`).join('');
   const html = `<div class="printTit">MARINHA · Fornecedores</div>
     <div class="printSub">Listagem de NIB · ${new Date().toLocaleDateString('pt-PT')}</div>
-    ${linhas}`;
+    <div style="background:#fff;border-radius:14px;padding:4px 12px">${linhas}</div>`;
   _imprimirArea(html);
 }
 
@@ -1312,7 +1315,7 @@ function renderContaCorrente() {
       return `<div class="fatRow">
         <div class="fatBadge pag">${iconeForma(p.forma_pagamento)}</div>
         <div class="fatInfo">
-          <div class="fatNome">${esc(p.forma_pagamento||'')}${p.banco ? ' · '+esc(p.banco) : ''}</div>
+          <div class="fatNome">${esc(p.forma_pagamento||'')}${bancoLimpo(p.banco) ? ' · '+esc(bancoLimpo(p.banco)) : ''}</div>
           <div class="fatSub">${p.data||''} · Pagamento</div>
         </div>
         <div class="fatVal" style="color:var(--gr)">−${fmt(p.valor)}</div>
@@ -1470,6 +1473,38 @@ function setBanco(v) {
 // (dinheiro, transferência, desconto financeiro, nota de crédito)
 // até perfazer o valor total do documento
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// GRUPOS DE PAGAMENTO — quando um só pagamento (ex: transferência) liquida
+// várias faturas em conjunto. O id do grupo vai "escondido" no campo banco,
+// depois de um separador ‡, para não precisar de nenhuma coluna nova.
+// ═══════════════════════════════════════════
+function grupoDe(p) {
+  const m = (p && p.banco || '').match(/‡grp:(\S+)/);
+  return m ? m[1] : null;
+}
+function bancoLimpo(banco) {
+  if(!banco) return null;
+  const limpo = banco.split('‡')[0];
+  return limpo || null;
+}
+function pagamentosDoGrupo(grupoId) {
+  if(!grupoId) return [];
+  return DB_PAG.filter(p => grupoDe(p) === grupoId);
+}
+// Dado um documento, diz se ele foi liquidado em conjunto com outros e quais
+function infoLiquidacaoConjunta(faturaId) {
+  const proprios = DB_PAG.filter(p => p.fatura_id === faturaId);
+  const comGrupo = proprios.find(p => grupoDe(p));
+  if(!comGrupo) return null;
+  const grupoId = grupoDe(comGrupo);
+  const todos = pagamentosDoGrupo(grupoId);
+  const visivel = todos.find(p => !ehMarcacaoInterna(p)) || comGrupo;
+  const outrosIds = [...new Set(todos.filter(p=>p.fatura_id && p.fatura_id!==faturaId).map(p=>p.fatura_id))];
+  const outrosDocs = outrosIds.map(id=>DB_FAT.find(x=>x.id===id)).filter(Boolean);
+  if(outrosDocs.length === 0) return null;
+  return { visivel, outrosDocs };
+}
+
 function iconeForma(forma) {
   const f = forma || '';
   if(f.startsWith('DINHEIRO')) return '💶';
@@ -1487,7 +1522,7 @@ function labelComponente(p) {
     const formaBase = p.forma_pagamento.replace(' (marcação)', '');
     return formaBase.charAt(0) + formaBase.slice(1).toLowerCase() + ' · liquidada com outro documento';
   }
-  if(p.forma_pagamento === 'TRANSFERÊNCIA') return 'Transferência' + (p.banco ? ' · '+esc(p.banco) : '');
+  if(p.forma_pagamento === 'TRANSFERÊNCIA') return 'Transferência' + (bancoLimpo(p.banco) ? ' · '+esc(bancoLimpo(p.banco)) : '');
   return p.forma_pagamento || 'Pagamento';
 }
 
@@ -1627,6 +1662,16 @@ function renderLiquidacao(faturaId) {
   document.getElementById('mLiqInfo').innerHTML =
     `<b>${esc(nomeFornecedor(f.fornecedor_id))}</b><br>${esc(f.tipo==='NC'?'Nota de Crédito':(f.tipo||'FT'))} ${esc(f.numero||'')} · ${f.data||''}`;
 
+  const elGrupoInfo = document.getElementById('mLiqGrupoInfo');
+  const infoGrupo = LIQ_JUNTAS.length === 0 ? infoLiquidacaoConjunta(f.id) : null;
+  if(infoGrupo) {
+    const nomesOutros = infoGrupo.outrosDocs.map(d=>esc(d.tipo||'FT')+' '+esc(d.numero||'')).join(', ');
+    elGrupoInfo.innerHTML = `💡 Este documento foi liquidado em conjunto com: ${nomesOutros}, através de ${esc(labelComponente(infoGrupo.visivel))} de ${fmt(infoGrupo.visivel.valor)} (${infoGrupo.visivel.data||''})`;
+    elGrupoInfo.style.display = 'block';
+  } else {
+    elGrupoInfo.style.display = 'none';
+  }
+
   const grupo = [f, ...LIQ_JUNTAS.map(id=>DB_FAT.find(x=>x.id===id)).filter(Boolean)];
   renderLiquidacaoDocumentos(grupo);
 
@@ -1703,6 +1748,13 @@ async function adicionarComponenteLiquidacao() {
     }
   }
 
+  if(nJuntas > 0) {
+    // Marca todos os registos deste pagamento com o mesmo id de grupo, para depois
+    // conseguirmos mostrar "esta fatura foi liquidada em conjunto com..."
+    const grupoId = 'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+    registos.forEach(r => { r.banco = (r.banco||'') + '‡grp:'+grupoId; });
+  }
+
   try {
     for(const r of registos) {
       const { error } = await db.from('pagamentos_fornecedores').insert(r);
@@ -1747,10 +1799,20 @@ function editarPagamento(pagId) {
   document.getElementById('mPagId').value = p.id;
   document.getElementById('mPagFaturaId').value = p.fatura_id||'';
   document.getElementById('mPagFornecedorId').value = p.fornecedor_id;
-  document.getElementById('mPagInfo').innerHTML =
-    `<b>${esc(nomeFornecedor(p.fornecedor_id))}</b>${f? '<br>'+esc(f.tipo||'FT')+' '+esc(f.numero||'') : ''}`;
+
+  let infoHtml = `<b>${esc(nomeFornecedor(p.fornecedor_id))}</b>${f? '<br>'+esc(f.tipo||'FT')+' '+esc(f.numero||'') : ''}`;
+  const grupoId = grupoDe(p);
+  if(grupoId) {
+    const outrosIds = [...new Set(pagamentosDoGrupo(grupoId).filter(x=>x.fatura_id && x.fatura_id!==p.fatura_id).map(x=>x.fatura_id))];
+    const outrosDocs = outrosIds.map(id=>DB_FAT.find(x=>x.id===id)).filter(Boolean);
+    if(outrosDocs.length) {
+      infoHtml += `<div style="margin-top:8px;padding:8px 10px;background:#fff7e6;border-radius:8px;color:#8a6300;font-size:11px">💡 Este pagamento também liquidou: ${outrosDocs.map(d=>esc(d.tipo||'FT')+' '+esc(d.numero||'')).join(', ')}</div>`;
+    }
+  }
+  document.getElementById('mPagInfo').innerHTML = infoHtml;
+
   setForma(p.forma_pagamento||'TRANSFERÊNCIA');
-  setBanco(p.banco||'BPI');
+  setBanco(bancoLimpo(p.banco)||'BPI');
   document.getElementById('fPagValor').value = p.valor;
   document.getElementById('fPagData').value = p.data || HOJE;
   document.getElementById('btnApagarPag').style.display = 'block';
@@ -1761,15 +1823,24 @@ async function guardarPagamento() {
   const valor = parseFloat(document.getElementById('fPagValor').value);
   if(!valor || valor<=0) return toast('⚠️ Indica um valor válido');
   const forma = document.getElementById('fPagForma').value;
+  const id = document.getElementById('mPagId').value;
+
+  let banco = forma==='TRANSFERÊNCIA' ? document.getElementById('fPagBanco').value : null;
+  // Se este pagamento fazia parte de uma liquidação conjunta, mantém a ligação ao grupo
+  if(id) {
+    const original = DB_PAG.find(x=>x.id===id);
+    const grupoId = original && grupoDe(original);
+    if(grupoId) banco = (banco||'') + '‡grp:' + grupoId;
+  }
+
   const d = {
     fornecedor_id: document.getElementById('mPagFornecedorId').value,
     fatura_id: document.getElementById('mPagFaturaId').value || null,
     forma_pagamento: forma,
-    banco: forma==='TRANSFERÊNCIA' ? document.getElementById('fPagBanco').value : null,
+    banco,
     valor,
     data: document.getElementById('fPagData').value || HOJE
   };
-  const id = document.getElementById('mPagId').value;
   try {
     if(!id) {
       const { error } = await db.from('pagamentos_fornecedores').insert(d);
@@ -1893,7 +1964,7 @@ function renderRelatorio() {
         totalGrupo -= Number(p.valor||0);
         return `<div class="relRow">
           <div style="flex:1;min-width:0">
-            <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.forma_pagamento||'PAGAMENTO')}${p.banco?' · '+esc(p.banco):''}</div>
+            <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.forma_pagamento||'PAGAMENTO')}${bancoLimpo(p.banco)?' · '+esc(bancoLimpo(p.banco)):''}</div>
             <div style="color:var(--mu);font-size:11px">${p.data||''}</div>
           </div>
           <div style="text-align:right;flex-shrink:0">
@@ -1944,7 +2015,7 @@ function imprimirRelatorio() {
         totalGrupo -= Number(p.valor||0);
         return `<tr>
           <td style="padding:4px 6px 4px 0">${p.data||''}</td>
-          <td style="padding:4px 6px">${esc(p.forma_pagamento||'Pagamento')}${p.banco?' · '+esc(p.banco):''}</td>
+          <td style="padding:4px 6px">${esc(p.forma_pagamento||'Pagamento')}${bancoLimpo(p.banco)?' · '+esc(bancoLimpo(p.banco)):''}</td>
           <td style="padding:4px 6px">—</td>
           <td style="padding:4px 0;text-align:right">−${fmt(p.valor)}</td>
         </tr>`;
