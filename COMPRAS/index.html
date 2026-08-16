@@ -496,6 +496,63 @@ body.printing #printArea{display:block;padding:20px}
   </div>
 </div>
 
+<!-- ── MODAL: LIQUIDAR DOCUMENTO (combinar formas até perfazer o valor) ── -->
+<div class="modal" id="mLiquidar">
+  <div class="mBox">
+    <div class="mTit"><span>Liquidar Documento</span><button class="mClose" onclick="fecharModal('mLiquidar')">✕</button></div>
+    <input type="hidden" id="mLiqFaturaId">
+    <input type="hidden" id="mLiqFornecedorId">
+    <div style="font-size:12px;color:var(--mu);margin-bottom:12px" id="mLiqInfo"></div>
+
+    <div style="background:#f7f7f7;padding:12px;border-radius:10px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Valor do Documento</span><b id="mLiqValorTotal">0€</b></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Já Atribuído</span><b id="mLiqValorPago" style="color:var(--gr)">0€</b></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800"><span>Falta</span><b id="mLiqValorFalta" style="color:var(--r)">0€</b></div>
+    </div>
+
+    <div id="mLiqComponentes" style="margin-bottom:12px"></div>
+
+    <div id="mLiqCompletoMsg" style="display:none;text-align:center;padding:10px;background:#e8f8ee;border-radius:10px;color:var(--gr);font-weight:800;margin-bottom:14px">✅ Documento Liquidado</div>
+
+    <div id="mLiqAddArea">
+      <label class="lbl">Adicionar Pagamento</label>
+      <div class="pillRow">
+        <div class="pill on" id="lqPillTransf" onclick="setLiqForma('TRANSFERÊNCIA')">🏦 Transferência</div>
+        <div class="pill" id="lqPillDinheiro" onclick="setLiqForma('DINHEIRO')">💶 Dinheiro</div>
+      </div>
+      <div class="pillRow">
+        <div class="pill" id="lqPillDesconto" onclick="setLiqForma('DESCONTO FINANCEIRO')">➗ Desc. Financeiro</div>
+        <div class="pill" id="lqPillNC" onclick="setLiqForma('NOTA DE CRÉDITO')">🧾 Nota de Crédito</div>
+      </div>
+      <input type="hidden" id="lqForma" value="TRANSFERÊNCIA">
+
+      <div id="lqBlocoBanco">
+        <label class="lbl">Banco</label>
+        <div class="pillRow">
+          <div class="pill on" id="lqPillBPI" onclick="setLiqBanco('BPI')">BPI</div>
+          <div class="pill" id="lqPillABANCA" onclick="setLiqBanco('ABANCA')">ABANCA</div>
+        </div>
+        <input type="hidden" id="lqBanco" value="BPI">
+      </div>
+
+      <div id="lqBlocoNC" style="display:none">
+        <label class="lbl">Notas de Crédito Disponíveis</label>
+        <div class="ncList" id="lqListaNC"></div>
+      </div>
+
+      <div id="lqBlocoValorData">
+        <label class="lbl">Valor (€)</label>
+        <input class="inp" id="lqValor" type="number" step="0.01" placeholder="0.00">
+
+        <label class="lbl">Data</label>
+        <input class="inp" id="lqData" type="date">
+      </div>
+
+      <button class="bP" id="lqBtnAdd" onclick="adicionarComponenteLiquidacao()">➕ ADICIONAR</button>
+    </div>
+  </div>
+</div>
+
 <div id="printArea"></div>
 <div id="toast"></div>
 
@@ -1347,26 +1404,63 @@ function setForma(v) {
   document.getElementById('pillDesconto').classList.toggle('on', v==='DESCONTO FINANCEIRO');
   document.getElementById('pillNC').classList.toggle('on', (v||'').startsWith('NOTA DE CRÉDITO'));
   document.getElementById('blocoBanco').style.display = v==='TRANSFERÊNCIA' ? 'block' : 'none';
+  // mPagamento serve apenas para editar um pagamento já existente — valor/data
+  // ficam sempre visíveis, sem o seletor de notas de crédito (esse vive no
+  // ecrã de Liquidar Documento, ver mLiquidar/setLiqForma).
+  document.getElementById('blocoNC').style.display = 'none';
+  document.getElementById('blocoValorData').style.display = 'block';
+  document.getElementById('btnGuardarPag').style.display = 'block';
+}
 
-  const aEditar = !!document.getElementById('mPagId').value;
-  const ehNC = (v||'').startsWith('NOTA DE CRÉDITO') && !aEditar;
-  document.getElementById('blocoNC').style.display = ehNC ? 'block' : 'none';
-  document.getElementById('blocoValorData').style.display = ehNC ? 'none' : 'block';
-  document.getElementById('btnGuardarPag').style.display = ehNC ? 'none' : 'block';
-  if(ehNC) renderListaNCDisponiveis();
+function setBanco(v) {
+  document.getElementById('fPagBanco').value = v;
+  document.getElementById('pillBPI').classList.toggle('on', v==='BPI');
+  document.getElementById('pillABANCA').classList.toggle('on', v==='ABANCA');
 }
 
 // ═══════════════════════════════════════════
-// NOTAS DE CRÉDITO — usar como forma de pagamento
+// LIQUIDAR DOCUMENTO — combinar várias formas de pagamento
+// (dinheiro, transferência, desconto financeiro, nota de crédito)
+// até perfazer o valor total do documento
 // ═══════════════════════════════════════════
-function renderListaNCDisponiveis() {
-  const el = document.getElementById('listaNCDisponiveis');
-  const fornId = document.getElementById('mPagFornecedorId').value;
-  const faturaAtualId = document.getElementById('mPagFaturaId').value;
+function labelComponente(p) {
+  if(p.forma_pagamento === 'NOTA DE CRÉDITO (aplicada)') {
+    const nc = DB_FAT.find(x=>x.id===p.banco);
+    return 'Nota de Crédito' + (nc ? ' ' + (nc.numero||'') : '');
+  }
+  if(p.forma_pagamento === 'TRANSFERÊNCIA') return 'Transferência' + (p.banco ? ' · '+esc(p.banco) : '');
+  return p.forma_pagamento || 'Pagamento';
+}
+
+function setLiqForma(v) {
+  document.getElementById('lqForma').value = v;
+  document.getElementById('lqPillTransf').classList.toggle('on', v==='TRANSFERÊNCIA');
+  document.getElementById('lqPillDinheiro').classList.toggle('on', v==='DINHEIRO');
+  document.getElementById('lqPillDesconto').classList.toggle('on', v==='DESCONTO FINANCEIRO');
+  document.getElementById('lqPillNC').classList.toggle('on', v==='NOTA DE CRÉDITO');
+  document.getElementById('lqBlocoBanco').style.display = v==='TRANSFERÊNCIA' ? 'block' : 'none';
+  const ehNC = v === 'NOTA DE CRÉDITO';
+  document.getElementById('lqBlocoNC').style.display = ehNC ? 'block' : 'none';
+  document.getElementById('lqBlocoValorData').style.display = ehNC ? 'none' : 'block';
+  document.getElementById('lqBtnAdd').style.display = ehNC ? 'none' : 'block';
+  if(ehNC) renderLiquidacaoNCList();
+}
+
+function setLiqBanco(v) {
+  document.getElementById('lqBanco').value = v;
+  document.getElementById('lqPillBPI').classList.toggle('on', v==='BPI');
+  document.getElementById('lqPillABANCA').classList.toggle('on', v==='ABANCA');
+}
+
+function renderLiquidacaoNCList() {
+  const el = document.getElementById('lqListaNC');
+  if(!el) return;
+  const faturaId = document.getElementById('mLiqFaturaId').value;
+  const fornId = document.getElementById('mLiqFornecedorId').value;
   const ncs = DB_FAT.filter(f =>
     f.tipo === 'NC' &&
     f.fornecedor_id === fornId &&
-    f.id !== faturaAtualId &&
+    f.id !== faturaId &&
     !ncFoiAplicada(f.id)
   ).sort((a,b) => (a.data||'').localeCompare(b.data||''));
 
@@ -1380,19 +1474,17 @@ function renderListaNCDisponiveis() {
       <div class="fatNome">${esc(nc.numero||'s/ nº')}</div>
       <div class="fatSub">${nc.data||''} · ${fmt(nc.valor)}</div>
     </div>
-    <div class="fatPago nao" onclick="aplicarNotaCredito('${nc.id}')"></div>
+    <div class="fatPago nao" onclick="aplicarComponenteNC('${nc.id}')"></div>
   </div>`).join('');
 }
 
-async function aplicarNotaCredito(ncId) {
+async function aplicarComponenteNC(ncId) {
   const nc = DB_FAT.find(x=>x.id===ncId);
   if(!nc) return;
-  const faturaId = document.getElementById('mPagFaturaId').value;
-  const fornecedorId = document.getElementById('mPagFornecedorId').value;
+  const faturaId = document.getElementById('mLiqFaturaId').value;
+  const fornecedorId = document.getElementById('mLiqFornecedorId').value;
   const valorNC = Number(nc.valor||0);
-  if(!confirm(`Aplicar a nota de crédito ${nc.numero||''} (${fmt(valorNC)}) a este documento?`)) return;
-
-  // Um único registo: dá baixa no documento a pagar (fatura_id) e, através do
+  // Um único registo: dá baixa no documento a liquidar (fatura_id) e, através do
   // campo "banco" a referenciar o id da NC, marca também a própria NC como usada.
   // Não soma ao total pago (o valor da NC já é descontado no saldo do fornecedor)
   // e não aparece como linha separada no extrato — só os vistos mudam.
@@ -1406,37 +1498,99 @@ async function aplicarNotaCredito(ncId) {
       data: HOJE
     });
     if(error) throw error;
-
     toast('✅ Nota de crédito aplicada');
-    fecharModal('mPagamento');
     await carregarTudo();
+    renderLiquidacao(faturaId);
     if(FORN_ATUAL) renderContaCorrente();
   } catch(e) { toast('❌ Erro: ' + e.message); }
 }
-function setBanco(v) {
-  document.getElementById('fPagBanco').value = v;
-  document.getElementById('pillBPI').classList.toggle('on', v==='BPI');
-  document.getElementById('pillABANCA').classList.toggle('on', v==='ABANCA');
+
+function renderLiquidacao(faturaId) {
+  const f = DB_FAT.find(x=>x.id===faturaId);
+  if(!f) return;
+  document.getElementById('mLiqFaturaId').value = f.id;
+  document.getElementById('mLiqFornecedorId').value = f.fornecedor_id;
+  document.getElementById('mLiqInfo').innerHTML =
+    `<b>${esc(nomeFornecedor(f.fornecedor_id))}</b><br>${esc(f.tipo==='NC'?'Nota de Crédito':(f.tipo||'FT'))} ${esc(f.numero||'')} · ${f.data||''}`;
+
+  const valorTotal = Number(f.valor||0);
+  const jaPago = pagoDeFatura(f.id);
+  const falta = Math.max(0, valorTotal - jaPago);
+
+  document.getElementById('mLiqValorTotal').textContent = fmt(valorTotal);
+  document.getElementById('mLiqValorPago').textContent = fmt(jaPago);
+  document.getElementById('mLiqValorFalta').textContent = fmt(falta);
+
+  const componentes = DB_PAG.filter(p=>p.fatura_id===f.id);
+  const elComp = document.getElementById('mLiqComponentes');
+  if(componentes.length===0) {
+    elComp.innerHTML = '<div style="text-align:center;padding:10px;color:var(--mu);font-size:12px">Ainda sem pagamentos associados</div>';
+  } else {
+    elComp.innerHTML = componentes.map(p => `<div class="fatRow">
+      <div class="fatBadge pag">${p.forma_pagamento==='DINHEIRO'?'💶':(p.forma_pagamento==='DESCONTO FINANCEIRO'?'➗':((p.forma_pagamento||'').startsWith('NOTA DE CRÉDITO')?'🧾':'🏦'))}</div>
+      <div class="fatInfo">
+        <div class="fatNome">${labelComponente(p)}</div>
+        <div class="fatSub">${p.data||''}</div>
+      </div>
+      <div class="fatVal" style="color:var(--gr)">${fmt(p.valor)}</div>
+      <button class="movDel" onclick="apagarComponenteLiquidacao('${p.id}')">🗑</button>
+    </div>`).join('');
+  }
+
+  const completo = falta <= 0.005;
+  document.getElementById('mLiqCompletoMsg').style.display = completo ? 'block' : 'none';
+  document.getElementById('mLiqAddArea').style.display = completo ? 'none' : 'block';
+
+  if(!completo) {
+    document.getElementById('lqValor').value = falta.toFixed(2);
+    document.getElementById('lqData').value = HOJE;
+  }
+  if(document.getElementById('lqForma').value === 'NOTA DE CRÉDITO') renderLiquidacaoNCList();
 }
 
+async function adicionarComponenteLiquidacao() {
+  const valor = parseFloat(document.getElementById('lqValor').value);
+  if(!valor || valor<=0) return toast('⚠️ Indica um valor válido');
+  const forma = document.getElementById('lqForma').value;
+  const faturaId = document.getElementById('mLiqFaturaId').value;
+  const fornecedorId = document.getElementById('mLiqFornecedorId').value;
+  const d = {
+    fornecedor_id: fornecedorId,
+    fatura_id: faturaId || null,
+    forma_pagamento: forma,
+    banco: forma==='TRANSFERÊNCIA' ? document.getElementById('lqBanco').value : null,
+    valor,
+    data: document.getElementById('lqData').value || HOJE
+  };
+  try {
+    const { error } = await db.from('pagamentos_fornecedores').insert(d);
+    if(error) throw error;
+    toast('✅ Pagamento adicionado');
+    await carregarTudo();
+    renderLiquidacao(faturaId);
+    if(FORN_ATUAL) renderContaCorrente();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
+
+async function apagarComponenteLiquidacao(pagId) {
+  if(!confirm('Remover este pagamento?')) return;
+  const faturaId = document.getElementById('mLiqFaturaId').value;
+  try {
+    const { error } = await db.from('pagamentos_fornecedores').delete().eq('id', pagId);
+    if(error) throw error;
+    toast('🗑️ Pagamento removido');
+    await carregarTudo();
+    renderLiquidacao(faturaId);
+    if(FORN_ATUAL) renderContaCorrente();
+  } catch(e) { toast('❌ Erro: ' + e.message); }
+}
 function abrirPagamento(faturaId) {
   const f = DB_FAT.find(x=>x.id===faturaId);
   if(!f) return;
-  const jaPago = pagoDeFatura(f.id);
-  const restante = Math.max(0, Number(f.valor||0) - jaPago);
-
-  document.getElementById('mPagTit').textContent = 'Registar Pagamento';
-  document.getElementById('mPagId').value = '';
-  document.getElementById('mPagFaturaId').value = f.id;
-  document.getElementById('mPagFornecedorId').value = f.fornecedor_id;
-  document.getElementById('mPagInfo').innerHTML =
-    `<b>${esc(nomeFornecedor(f.fornecedor_id))}</b><br>${esc(f.tipo||'FT')} ${esc(f.numero||'')} · Valor da fatura: ${fmt(f.valor)}${jaPago>0.005?'<br>Já pago: '+fmt(jaPago):''}`;
-  setForma('TRANSFERÊNCIA');
-  setBanco('BPI');
-  document.getElementById('fPagValor').value = restante.toFixed(2);
-  document.getElementById('fPagData').value = HOJE;
-  document.getElementById('btnApagarPag').style.display = 'none';
-  abrirModal('mPagamento');
+  setLiqForma('TRANSFERÊNCIA');
+  setLiqBanco('BPI');
+  renderLiquidacao(faturaId);
+  abrirModal('mLiquidar');
 }
 
 function editarPagamento(pagId) {
@@ -1521,7 +1675,7 @@ function preencherSelectRelForn() {
   if(atual) sel.value = atual;
 }
 
-function renderRelatorio() {
+function obterGruposRelatorio() {
   const de  = document.getElementById('relDe')?.value;
   const ate = document.getElementById('relAte')?.value;
   const fornFiltro = document.getElementById('relForn')?.value;
@@ -1549,25 +1703,30 @@ function renderRelatorio() {
     }).forEach(p => itens.push({ cat:'pag', obj:p, forn: nomeFornecedor(p.fornecedor_id), data: p.data||'' }));
   }
 
-  const el = document.getElementById('listaRelatorio');
-  if(itens.length===0){
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu);font-size:13px">Sem documentos no período/filtro selecionado</div>';
-    return;
-  }
-
-  // Agrupado por fornecedor (nome), depois cada grupo ordenado por data
   const grupos = {};
   itens.forEach(it => {
     if(!grupos[it.forn]) grupos[it.forn] = [];
     grupos[it.forn].push(it);
   });
   const nomesForn = Object.keys(grupos).sort((a,b) => a.localeCompare(b, 'pt'));
+  nomesForn.forEach(nome => grupos[nome].sort((a,b) => (a.data||'').localeCompare(b.data||'')));
+
+  return { nomesForn, grupos };
+}
+
+function renderRelatorio() {
+  const { nomesForn, grupos } = obterGruposRelatorio();
+  const el = document.getElementById('listaRelatorio');
+
+  if(nomesForn.length===0){
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--mu);font-size:13px">Sem documentos no período/filtro selecionado</div>';
+    return;
+  }
 
   el.innerHTML = nomesForn.map(nome => {
-    const grupo = grupos[nome].sort((a,b) => (a.data||'').localeCompare(b.data||''));
     let totalGrupo = 0;
 
-    const linhas = grupo.map(it => {
+    const linhas = grupos[nome].map(it => {
       if(it.cat === 'doc') {
         const f = it.obj;
         const pago = docPago(f);
@@ -1607,7 +1766,69 @@ function renderRelatorio() {
   }).join('');
 }
 
-function imprimirRelatorio() { window.print(); }
+function formatarDataPT(d) {
+  if(!d) return '';
+  const [y,m,dd] = d.split('-');
+  return `${dd}/${m}/${y}`;
+}
+
+function imprimirRelatorio() {
+  const { nomesForn, grupos } = obterGruposRelatorio();
+  if(nomesForn.length===0) return toast('⚠️ Sem documentos no período/filtro selecionado');
+
+  const de  = document.getElementById('relDe')?.value;
+  const ate = document.getElementById('relAte')?.value;
+  const periodo = (de || ate) ? `${de ? formatarDataPT(de) : '...'} a ${ate ? formatarDataPT(ate) : '...'}` : 'Todos os períodos';
+
+  let totalGeral = 0;
+  const blocos = nomesForn.map(nome => {
+    let totalGrupo = 0;
+    const linhas = grupos[nome].map(it => {
+      if(it.cat === 'doc') {
+        const f = it.obj;
+        totalGrupo += valorDoc(f);
+        return `<tr>
+          <td style="padding:4px 6px 4px 0">${f.data||''}</td>
+          <td style="padding:4px 6px">${esc(f.tipo==='NC'?'Nota de Crédito':(f.tipo||'Fatura'))}</td>
+          <td style="padding:4px 6px">${esc(f.numero||'')}</td>
+          <td style="padding:4px 0;text-align:right">${fmtDoc(f)}</td>
+        </tr>`;
+      } else {
+        const p = it.obj;
+        totalGrupo -= Number(p.valor||0);
+        return `<tr>
+          <td style="padding:4px 6px 4px 0">${p.data||''}</td>
+          <td style="padding:4px 6px">${esc(p.forma_pagamento||'Pagamento')}${p.banco?' · '+esc(p.banco):''}</td>
+          <td style="padding:4px 6px">—</td>
+          <td style="padding:4px 0;text-align:right">−${fmt(p.valor)}</td>
+        </tr>`;
+      }
+    }).join('');
+    totalGeral += totalGrupo;
+
+    return `<div style="margin-bottom:18px;page-break-inside:avoid">
+      <div style="font-weight:800;font-size:14px;padding-bottom:4px;border-bottom:2px solid #333;margin-bottom:4px">${esc(nome)}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:1px solid #999;text-align:left">
+          <th style="padding:4px 6px 4px 0">Data</th>
+          <th style="padding:4px 6px">Documento</th>
+          <th style="padding:4px 6px">Nº</th>
+          <th style="padding:4px 0;text-align:right">Valor</th>
+        </tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+      <div style="display:flex;justify-content:space-between;font-weight:800;font-size:13px;border-top:1px solid #333;padding-top:6px;margin-top:2px">
+        <span>Total ${esc(nome)}</span><span>${fmt(totalGrupo)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const html = `<div class="printTit">MARINHA · Relatório</div>
+    <div class="printSub">${periodo}</div>
+    ${blocos}
+    <div class="printRow" style="border-top:2px solid #333;border-bottom:none;margin-top:6px;padding-top:10px;font-size:15px"><b>TOTAL GERAL</b><b>${fmt(totalGeral)}</b></div>`;
+  _imprimirArea(html);
+}
 
 // Fechar modais ao clicar fora
 document.querySelectorAll('.modal').forEach(m => {
