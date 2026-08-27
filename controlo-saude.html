@@ -879,11 +879,44 @@ function atualizarFundoUI(){
 // TENSÃO ARTERIAL
 // ══════════════════════════════════════════
 function classificarTensao(sis, dia){
-  if(sis >= 180 || dia >= 120) return {label:'Crise<br>Hipertensiva', cor:'bad'};
-  if(sis >= 140 || dia >= 90) return {label:'Hipertensão<br>Estágio 2', cor:'bad'};
-  if(sis >= 130 || dia >= 80) return {label:'Hipertensão<br>Estágio 1', cor:'warn'};
-  if(sis >= 120) return {label:'Elevada', cor:'warn'};
-  return {label:'Normal', cor:'ok'};
+  // Classificação segundo as normas europeias ESH/ESC 2018
+  // (Sociedade Europeia de Hipertensão / Sociedade Europeia de Cardiologia)
+  var catSis;
+  if(sis >= 180) catSis = 6;
+  else if(sis >= 160) catSis = 5;
+  else if(sis >= 140) catSis = 4;
+  else if(sis >= 130) catSis = 3;
+  else if(sis >= 120) catSis = 2;
+  else catSis = 1;
+
+  var catDia;
+  if(dia >= 110) catDia = 6;
+  else if(dia >= 100) catDia = 5;
+  else if(dia >= 90) catDia = 4;
+  else if(dia >= 85) catDia = 3;
+  else if(dia >= 80) catDia = 2;
+  else catDia = 1;
+
+  // A categoria final é a mais alta entre sistólica e diastólica
+  var cat = Math.max(catSis, catDia);
+
+  var mapa = {
+    1: {label:'Ótima', cor:'ok'},
+    2: {label:'Normal', cor:'ok'},
+    3: {label:'Normal-Alta', cor:'warn'},
+    4: {label:'Hipertensão<br>Grau 1', cor:'warn'},
+    5: {label:'Hipertensão<br>Grau 2', cor:'bad'},
+    6: {label:'Hipertensão<br>Grau 3', cor:'bad'}
+  };
+
+  var res = mapa[cat];
+
+  // Hipertensão sistólica isolada: sistólica ≥140 com diastólica <90
+  if(cat >= 4 && dia < 90){
+    res = {label: res.label + '<br>(Isolada)', cor: res.cor};
+  }
+
+  return res;
 }
 
 var editandoTensaoId = null;
@@ -1262,10 +1295,19 @@ function renderResumo(){
   if(!sDia.length){
     sEl.innerHTML = '<div class="bpMiniCard"><span style="font-size:12.5px;color:var(--ivory-dim)">Sem registo de sono nesta noite</span><button class="btnSmall" onclick="ir(\'sono\')">+ Registar</button></div>';
   } else {
-    sEl.innerHTML = sDia.map(function(r){
-      var c = classificarSono(r.duracaoMin);
-      return '<div class="bpMiniCard"><span style="display:flex;align-items:center;gap:8px">' + iconeLua() + '<b>' + formatarDuracao(r.duracaoMin) + '</b> <small style="color:var(--ivory-dim)">('+r.inicio+' → '+r.fim+')</small></span><span class="badge '+c.cor+'">'+c.label+'</span></div>';
-    }).join('');
+    var totalNoiteMin = sDia.reduce(function(s, r){ return s + r.duracaoMin; }, 0);
+    var cTotal = classificarSono(totalNoiteMin);
+    var totalHtml = '<div class="bpMiniCard"><span style="display:flex;align-items:center;gap:8px">' + iconeLua() +
+      '<b>Total: ' + formatarDuracao(totalNoiteMin) + '</b>' +
+      (sDia.length > 1 ? ' <small style="color:var(--ivory-dim)">(' + sDia.length + ' sessões)</small>' : '') +
+      '</span><span class="badge '+cTotal.cor+'">'+cTotal.label+'</span></div>';
+
+    var sessoesHtml = sDia.length > 1 ? sDia.map(function(r){
+      var q = SONO_QUALIDADES.find(x => x.id === r.qualidade);
+      return '<div class="bpMiniCard"><span style="display:flex;align-items:center;gap:8px">' + iconeLua() + '<b>' + formatarDuracao(r.duracaoMin) + '</b> <small style="color:var(--ivory-dim)">('+r.inicio+' → '+r.fim+')</small></span>' + (q ? '<span class="badge '+q.cor+'">'+q.label+'</span>' : '') + '</div>';
+    }).join('') : '';
+
+    sEl.innerHTML = totalHtml + sessoesHtml;
   }
 
   // Doses do dia
@@ -1560,6 +1602,18 @@ function classificarSono(min){
   return { cor:'warn', label:'Prolongado' };
 }
 
+// Soma a duração de todas as sessões de sono registadas para a mesma noite/data,
+// para que interrupções (acordar e voltar a dormir) sejam contabilizadas no total.
+function sonoTotalMinData(data){
+  return getSono()
+    .filter(function(r){ return r.data === data; })
+    .reduce(function(s, r){ return s + r.duracaoMin; }, 0);
+}
+
+function sonoSessoesData(data){
+  return getSono().filter(function(r){ return r.data === data; }).length;
+}
+
 function iconeLua(){
   return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z" fill="var(--nrem-prof)"/></svg>';
 }
@@ -1682,7 +1736,9 @@ function renderSono(){
   }
 
   el.innerHTML = lista.map(function(r){
-    var c = classificarSono(r.duracaoMin);
+    var totalNoite = sonoTotalMinData(r.data);
+    var numSessoes = sonoSessoesData(r.data);
+    var c = classificarSono(totalNoite);
     var q = SONO_QUALIDADES.find(x => x.id === r.qualidade);
     var comp = '';
     if(r.leve != null || r.profundo != null || r.rem != null){
@@ -1702,7 +1758,9 @@ function renderSono(){
       '<div class="sTop">' +
         '<span style="display:flex;align-items:center;gap:8px">' + iconeLua() +
           '<span><span class="sMain">' + formatarDuracao(r.duracaoMin) + '</span>' +
-          '<div class="sMeta">' + fd(r.data) + ' · ' + r.inicio + ' → ' + r.fim + (r.notas ? ' · ' + r.notas : '') + '</div></span>' +
+          '<div class="sMeta">' + fd(r.data) + ' · ' + r.inicio + ' → ' + r.fim + (r.notas ? ' · ' + r.notas : '') +
+            (numSessoes > 1 ? ' · Total da noite: ' + formatarDuracao(totalNoite) + ' (' + numSessoes + ' sessões)' : '') +
+          '</div></span>' +
         '</span>' +
         '<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
           '<span class="badge ' + c.cor + '">' + c.label + '</span>' +
@@ -1714,7 +1772,19 @@ function renderSono(){
     '</div>';
   }).join('');
 
-  renderSonoChart(lista.slice(0, 20).reverse());
+  renderSonoChart(agregarSonoPorDia(lista).slice(0, 20).reverse());
+}
+
+// Agrupa uma lista de registos de sono por data, somando as durações
+// de todas as sessões da mesma noite (mantém a ordem já existente na lista).
+function agregarSonoPorDia(lista){
+  var porDia = {};
+  var ordem = [];
+  lista.forEach(function(r){
+    if(!(r.data in porDia)){ porDia[r.data] = 0; ordem.push(r.data); }
+    porDia[r.data] += r.duracaoMin;
+  });
+  return ordem.map(function(data){ return { data: data, duracaoMin: porDia[data] }; });
 }
 
 function renderSonoChart(pontos){
