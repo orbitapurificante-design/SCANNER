@@ -926,8 +926,8 @@ async function guardarFaturaSupabase(fat, isSync = false) {
     pago: fat.pago || false,
     comercial: fat.comercial || null,
     criado_em: fat.criadoEm || new Date().toISOString(),
-    data_recebimento: fat.dataRecebimento || null
-    // NOTA: campo 'notas' não existe na tabela do Supabase — guardado só localmente
+    data_recebimento: fat.dataRecebimento || null,
+    notas: fat.notas || []
   };
   try {
     const { error } = await db.from('faturas').insert(d);
@@ -967,7 +967,8 @@ async function actualizarFaturaSupabase(fat) {
       num: fat.num, data: fat.data || null,
       valor: parseFloat(fat.valor) || 0,
       pago: fat.pago || false, comercial: fat.comercial || null,
-      data_recebimento: fat.dataRecebimento || null
+      data_recebimento: fat.dataRecebimento || null,
+      notas: fat.notas || []
     }).eq('id', fat.id);
     if(error) throw error;
     return true;
@@ -994,7 +995,7 @@ async function carregarFaturas() {
     // Carregar TODAS as faturas sempre — necessário para calcular pendentes por cliente
     // O filtro por comercial é feito em memória no getFaturasFiltradas()
     const { data, error } = await db.from('faturas')
-      .select('id,nome,nif,tipo,num,data,valor,pago,comercial,criado_em,data_recebimento')
+      .select('id,nome,nif,tipo,num,data,valor,pago,comercial,criado_em,data_recebimento,notas')
       .order('data', { ascending: true });
     if(error) throw error;
     FATURAS = (data || []).map(f => ({
@@ -2261,7 +2262,10 @@ function renderNotasEdit() {
     cont.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:10px 0">Sem notas registadas</div>';
     return;
   }
-  cont.innerHTML = _notasEdit.map((n, i) => `
+  cont.innerHTML = _notasEdit.map((n, i) => {
+    const tr = n.tipoResolucao || {};
+    const hoje = new Date().toISOString().slice(0,10);
+    return `
     <div class="notaItem ${n.resolvida ? 'resolvida' : ''}">
       <div style="display:flex;align-items:flex-start;gap:8px">
         <div style="flex:1">
@@ -2270,15 +2274,64 @@ function renderNotasEdit() {
         </div>
         <button class="btnDelNota" onclick="_notasEdit.splice(${i},1);renderNotasEdit()" title="Eliminar">×</button>
       </div>
-      ${n.resolvida && n.resolucao ? `<div class="notaResolucao">💬 ${esc(n.resolucao)}</div>` : ''}
+      ${n.resolvida ? `<div class="notaResolucao">
+          ✅ Resolvida em ${n.resolvidaEm ? fmtDataPT(n.resolvidaEm) : fmtDataPT(hoje)}
+          ${(tr.documento||tr.dinheiro||tr.trocaFisica) ? ' · ' + [
+            tr.documento ? '📄 Documento' + (n.docResolucao ? ' ('+esc(n.docResolucao)+')' : '') : '',
+            tr.dinheiro ? '💶 Dinheiro' + (n.valorResolucao ? ' ('+parseFloat(n.valorResolucao).toFixed(2)+'€)' : '') : '',
+            tr.trocaFisica ? '🔄 Troca física' + (n.trocaFisicaDesc ? ' ('+esc(n.trocaFisicaDesc)+')' : '') : ''
+          ].filter(Boolean).join(' · ') : ''}
+          ${n.resolucao ? '<br>💬 '+esc(n.resolucao) : ''}
+        </div>` : ''}
       <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
         <div style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1" onclick="toggleResolvida(${i})">
           <div class="notaVistoBx ${n.resolvida ? 'on' : ''}">✓</div>
           <span style="font-size:12px;font-weight:700;color:${n.resolvida ? 'var(--gr)' : 'var(--mu)'}">${n.resolvida ? 'Marcada como resolvida' : 'Dar visto (marcar como resolvida)'}</span>
         </div>
       </div>
-      ${n.resolvida ? `<div style="margin-top:8px"><textarea placeholder="Como foi resolvido? (opcional)" style="width:100%;padding:8px 10px;background:rgba(39,174,96,.07);border:1.5px solid rgba(39,174,96,.2);border-radius:8px;font-size:12px;color:var(--n);outline:none;font-family:'DM Sans',sans-serif;resize:vertical;min-height:55px" oninput="_notasEdit[${i}].resolucao=this.value">${esc(n.resolucao||'')}</textarea></div>` : ''}
-    </div>`).join('');
+      ${n.resolvida ? `
+      <div style="margin-top:8px;background:rgba(39,174,96,.07);border:1.5px solid rgba(39,174,96,.2);border-radius:8px;padding:10px">
+        <label class="lbl" style="margin-bottom:4px">Data da resolução</label>
+        <input type="date" value="${n.resolvidaEm || hoje}" style="width:100%;padding:8px 10px;background:#fff;border:1.5px solid rgba(39,174,96,.25);border-radius:8px;font-size:13px;color:var(--n);outline:none;font-family:'DM Sans',sans-serif;margin-bottom:10px" oninput="_notasEdit[${i}].resolvidaEm=this.value;renderNotasEdit()">
+
+        <label class="lbl" style="margin-bottom:4px">Como foi resolvido (pode marcar mais do que um)</label>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:6px;cursor:pointer" onclick="toggleTipoResolucao(${i},'documento')">
+            <div class="notaVistoBx ${tr.documento ? 'on' : ''}" style="width:20px;height:20px">✓</div>
+            <span style="font-size:12px;font-weight:700;color:var(--n)">📄 Documento</span>
+          </div>
+          ${tr.documento ? `<input type="text" placeholder="Nº / referência do documento" value="${esc(n.docResolucao||'')}" style="width:100%;padding:8px 10px;background:#fff;border:1.5px solid rgba(39,174,96,.25);border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif" oninput="_notasEdit[${i}].docResolucao=this.value">` : ''}
+
+          <div style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:4px" onclick="toggleTipoResolucao(${i},'dinheiro')">
+            <div class="notaVistoBx ${tr.dinheiro ? 'on' : ''}" style="width:20px;height:20px">✓</div>
+            <span style="font-size:12px;font-weight:700;color:var(--n)">💶 Dinheiro</span>
+          </div>
+          ${tr.dinheiro ? `<input type="number" step="0.01" placeholder="Valor (€)" value="${n.valorResolucao||''}" style="width:100%;padding:8px 10px;background:#fff;border:1.5px solid rgba(39,174,96,.25);border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif" oninput="_notasEdit[${i}].valorResolucao=this.value">` : ''}
+
+          <div style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:4px" onclick="toggleTipoResolucao(${i},'trocaFisica')">
+            <div class="notaVistoBx ${tr.trocaFisica ? 'on' : ''}" style="width:20px;height:20px">✓</div>
+            <span style="font-size:12px;font-weight:700;color:var(--n)">🔄 Troca física</span>
+          </div>
+          ${tr.trocaFisica ? `<input type="text" placeholder="O que foi trocado" value="${esc(n.trocaFisicaDesc||'')}" style="width:100%;padding:8px 10px;background:#fff;border:1.5px solid rgba(39,174,96,.25);border-radius:8px;font-size:13px;outline:none;font-family:'DM Sans',sans-serif" oninput="_notasEdit[${i}].trocaFisicaDesc=this.value">` : ''}
+        </div>
+
+        <label class="lbl" style="margin-bottom:4px">Observações (opcional)</label>
+        <textarea placeholder="Detalhes adicionais sobre a resolução..." style="width:100%;padding:8px 10px;background:#fff;border:1.5px solid rgba(39,174,96,.25);border-radius:8px;font-size:12px;color:var(--n);outline:none;font-family:'DM Sans',sans-serif;resize:vertical;min-height:50px" oninput="_notasEdit[${i}].resolucao=this.value">${esc(n.resolucao||'')}</textarea>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleTipoResolucao(i, tipo) {
+  if(!_notasEdit[i].tipoResolucao) _notasEdit[i].tipoResolucao = {};
+  _notasEdit[i].tipoResolucao[tipo] = !_notasEdit[i].tipoResolucao[tipo];
+  renderNotasEdit();
+}
+
+function fmtDataPT(iso) {
+  if(!iso) return '';
+  const [y,m,d] = iso.slice(0,10).split('-');
+  return `${d}/${m}/${y}`;
 }
 
 function adicionarNota() {
@@ -2294,14 +2347,27 @@ function cancelarNota() {
 function confirmarNota() {
   const txt = document.getElementById('novaNotaTexto').value.trim();
   if(!txt) { toast('⚠️ Escreve a nota primeiro'); return; }
-  _notasEdit.push({ texto: txt, resolvida: false, resolucao: '', criadaEm: new Date().toISOString() });
+  _notasEdit.push({
+    texto: txt, resolvida: false, resolucao: '', criadaEm: new Date().toISOString(),
+    resolvidaEm: null, tipoResolucao: {}, docResolucao: '', valorResolucao: '', trocaFisicaDesc: ''
+  });
   document.getElementById('addNotaBox').style.display = 'none';
   renderNotasEdit();
 }
 
 function toggleResolvida(i) {
   _notasEdit[i].resolvida = !_notasEdit[i].resolvida;
-  if(!_notasEdit[i].resolvida) _notasEdit[i].resolucao = '';
+  if(_notasEdit[i].resolvida) {
+    if(!_notasEdit[i].resolvidaEm) _notasEdit[i].resolvidaEm = new Date().toISOString().slice(0,10);
+    if(!_notasEdit[i].tipoResolucao) _notasEdit[i].tipoResolucao = {};
+  } else {
+    _notasEdit[i].resolucao = '';
+    _notasEdit[i].resolvidaEm = null;
+    _notasEdit[i].tipoResolucao = {};
+    _notasEdit[i].docResolucao = '';
+    _notasEdit[i].valorResolucao = '';
+    _notasEdit[i].trocaFisicaDesc = '';
+  }
   renderNotasEdit();
 }
 
