@@ -916,12 +916,15 @@ function atualizarFundoUI(){
 // ══════════════════════════════════════════
 // TENSÃO ARTERIAL
 // ══════════════════════════════════════════
+// Classificação segundo as normas europeias (ESC/ESH — Sociedade Europeia de
+// Cardiologia / Sociedade Europeia de Hipertensão, tabela de referência 2018/2023)
 function classificarTensao(sis, dia){
-  if(sis >= 180 || dia >= 120) return {label:'Crise<br>Hipertensiva', cor:'bad'};
-  if(sis >= 140 || dia >= 90) return {label:'Hipertensão<br>Estágio 2', cor:'bad'};
-  if(sis >= 130 || dia >= 80) return {label:'Hipertensão<br>Estágio 1', cor:'warn'};
-  if(sis >= 120) return {label:'Elevada', cor:'warn'};
-  return {label:'Normal', cor:'ok'};
+  if(sis >= 180 || dia >= 110) return {label:'Hipertensão<br>Grau 3', cor:'bad'};
+  if(sis >= 160 || dia >= 100) return {label:'Hipertensão<br>Grau 2', cor:'bad'};
+  if(sis >= 140 || dia >= 90)  return {label:'Hipertensão<br>Grau 1', cor:'warn'};
+  if(sis >= 130 || dia >= 85)  return {label:'Normal-Alta', cor:'warn'};
+  if(sis >= 120 || dia >= 80)  return {label:'Normal', cor:'ok'};
+  return {label:'Ótima', cor:'ok'};
 }
 
 var editandoTensaoId = null;
