@@ -455,10 +455,7 @@
 
     <div id="tensaoLista"></div>
 
-    <div class="printOnly printChartPage" id="chartWrapPrintPage">
-      <div style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;margin-bottom:10px">Gráfico de Evolução — Tensão e Pulso</div>
-      <div class="chartWrap" id="chartWrapPrint" style="border:1px solid #999;background:#fff"></div>
-    </div>
+    <div id="chartPagesPrint" class="printOnly"></div>
   </div>
 
   <!-- ═══ ECRÃ MEDICAÇÃO ═══ -->
@@ -1025,7 +1022,8 @@ function renderTensao(){
   }).join('');
 
   renderChart(lista.slice(0, 14).reverse());
-  renderChartPrint(lista.slice().reverse());
+  // Impressão: mostra sempre TODO o histórico (ignora o filtro do ecrã), paginado
+  renderChartPrint(getTensoes().slice().sort(function(a,b){ return (a.data+a.hora).localeCompare(b.data+b.hora); }));
 }
 
 function renderChart(pontos){
@@ -1072,26 +1070,57 @@ function renderChart(pontos){
   wrap.innerHTML = svg + '<div class="chartLegend"><span><i class="dot" style="background:#a9782e"></i>Sistólica</span><span><i class="dot" style="background:#8a2c3d"></i>Diastólica</span></div>';
 }
 
-// Gráfico completo para impressão (última folha, horizontal) — inclui todos os dias e o pulso,
-// com a hora de cada medição por cima da bolinha.
-function renderChartPrint(pontos){
-  var wrap = document.getElementById('chartWrapPrint');
-  if(!wrap) return;
-  if(!pontos.length){ wrap.innerHTML = ''; return; }
-  if(pontos.length < 2){
-    wrap.innerHTML = '<div style="text-align:center;font-size:11.5px;color:#666;padding:10px 0">Sem registos suficientes para o gráfico.</div>';
+// Gráfico completo para impressão — paginado a 15 dias por página (mostra sempre
+// TODO o histórico, em várias folhas se necessário), com o pulso numa faixa própria
+// e a hora de cada medição por cima da bolinha.
+function renderChartPrint(pontosAsc){
+  var container = document.getElementById('chartPagesPrint');
+  if(!container) return;
+  container.innerHTML = '';
+  if(!pontosAsc.length) return;
+  if(pontosAsc.length < 2){
+    var aviso = document.createElement('div');
+    aviso.className = 'printChartPage';
+    aviso.innerHTML = '<div style="text-align:center;font-size:13px;color:#666;padding:10px 0">Sem registos suficientes para o gráfico.</div>';
+    container.appendChild(aviso);
     return;
   }
 
+  // Agrupar por dia e paginar a 15 dias por página
+  var porData = {}, diasOrdenados = [];
+  pontosAsc.forEach(function(p){
+    if(!porData[p.data]){ porData[p.data] = []; diasOrdenados.push(p.data); }
+    porData[p.data].push(p);
+  });
+  var DIAS_POR_PAGINA = 15;
+  var numPaginas = Math.ceil(diasOrdenados.length / DIAS_POR_PAGINA);
+
+  for(var pg = 0; pg < numPaginas; pg++){
+    var diasPagina = diasOrdenados.slice(pg*DIAS_POR_PAGINA, pg*DIAS_POR_PAGINA + DIAS_POR_PAGINA);
+    var pontosPagina = [];
+    diasPagina.forEach(function(d){ pontosPagina = pontosPagina.concat(porData[d]); });
+
+    var pageEl = document.createElement('div');
+    pageEl.className = 'printChartPage';
+    var subtitulo = numPaginas > 1 ? ' — ' + fd(diasPagina[0]).slice(0,5) + ' a ' + fd(diasPagina[diasPagina.length-1]).slice(0,5) +
+      ' (página ' + (pg+1) + ' de ' + numPaginas + ')' : '';
+    pageEl.innerHTML = '<div style="font-family:\'Cormorant Garamond\',serif;font-size:18px;font-weight:600;margin-bottom:10px">' +
+      'Gráfico de Evolução — Tensão e Pulso' + subtitulo + '</div>' +
+      '<div class="chartWrap" style="border:1px solid #999;background:#fff"></div>';
+    container.appendChild(pageEl);
+    construirGraficoTensaoSVG(pageEl.querySelector('.chartWrap'), pontosPagina, diasPagina);
+  }
+}
+
+function construirGraficoTensaoSVG(wrap, pontos, diasPagina){
   var temPulso = pontos.some(function(p){ return !!p.bpm; });
 
-  // Fontes maiores (quase o dobro) e mais espaço entre zonas para nada se sobrepor
+  // Fontes grandes e bem espaçadas para não haver confusão nenhuma
   var fzValor = 15, fzHora = 13, fzData = 13, fzEixo = 15, fzTitulo = 16;
-  var W = 1650, H = 890, padL = 60, padR = 26, padTTop = 130, padB = 150, gapEntreZonas = 70;
+  var W = 1650, H = 890, padL = 60, padR = 26, padTTop = 130, padB = 130, gapEntreZonas = 70;
   var innerW = W - padL - padR;
   var n = pontos.length;
 
-  // Zona de cima: Sistólica + Diastólica. Zona de baixo (separada): Pulso.
   var usableH = H - padTTop - padB - (temPulso ? gapEntreZonas : 0);
   var topH = temPulso ? usableH * 0.6 : usableH;
   var botH = temPulso ? usableH * 0.4 : 0;
@@ -1102,24 +1131,23 @@ function renderChartPrint(pontos){
 
   var valsPressao = [IDEAL_SIS, IDEAL_DIA];
   pontos.forEach(function(p){ valsPressao.push(p.sis, p.dia); });
-  var maxP = Math.max.apply(null, valsPressao) + 12;
-  var minP = Math.min.apply(null, valsPressao) - 12;
+  var maxP = Math.max.apply(null, valsPressao) + 16;
+  var minP = Math.min.apply(null, valsPressao) - 16;
 
   var valsPulso = pontos.filter(function(p){ return !!p.bpm; }).map(function(p){ return p.bpm; });
   if(temPulso) valsPulso.push(IDEAL_BPM);
-  var maxBpm = valsPulso.length ? Math.max.apply(null, valsPulso) + 10 : 100;
-  var minBpm = valsPulso.length ? Math.min.apply(null, valsPulso) - 10 : 50;
+  var maxBpm = valsPulso.length ? Math.max.apply(null, valsPulso) + 14 : 100;
+  var minBpm = valsPulso.length ? Math.min.apply(null, valsPulso) - 14 : 50;
 
   function x(i){ return padL + (n === 1 ? innerW/2 : (i/(n-1)) * innerW); }
   function yPressao(v){ return topY0 + topH - ((v - minP) / (maxP - minP)) * topH; }
   function yPulso(v){ return botY0 + botH - ((v - minBpm) / (maxBpm - minBpm)) * botH; }
 
-  var muitos = n > 24;
-  var passoLabel = muitos ? Math.ceil(n/24) : 1;
+  var passoLabel = n > 20 ? Math.ceil(n/20) : 1;
 
-  // Os valores de cada linha ficam à esquerda/direita do ponto (não em cima da linha),
-  // alternando por linha para nunca colidirem entre si.
-  function linha(campo, cor, ladoValor, escala){
+  // Número do registo SEMPRE por cima da bolinha, com halo branco para nunca
+  // se confundir a tocar na linha.
+  function linha(campo, cor, escala, offsetTexto){
     var d = '', emCurso = false, pts = '';
     pontos.forEach(function(p,i){
       var v = p[campo];
@@ -1131,10 +1159,10 @@ function renderChartPrint(pontos){
       d += (emCurso ? 'L' : 'M') + x(i).toFixed(1) + ',' + py.toFixed(1) + ' ';
       emCurso = true;
       if(i % passoLabel === 0){
-        var lx = ladoValor === 'esq' ? (x(i) - 9) : (x(i) + 9);
-        var anchor = ladoValor === 'esq' ? 'end' : 'start';
+        var ty = py + offsetTexto;
         pts += '<circle cx="'+x(i).toFixed(1)+'" cy="'+py.toFixed(1)+'" r="4" fill="#fff" stroke="'+cor+'" stroke-width="2.4"/>' +
-          '<text x="'+lx.toFixed(1)+'" y="'+(py+5).toFixed(1)+'" font-size="'+fzValor+'" font-weight="700" fill="'+cor+'" text-anchor="'+anchor+'">'+v+'</text>';
+          '<text x="'+x(i).toFixed(1)+'" y="'+ty.toFixed(1)+'" font-size="'+fzValor+'" font-weight="700" fill="'+cor+'" ' +
+          'text-anchor="middle" stroke="#fff" stroke-width="4" paint-order="stroke">'+v+'</text>';
       } else {
         pts += '<circle cx="'+x(i).toFixed(1)+'" cy="'+py.toFixed(1)+'" r="2.6" fill="'+cor+'"/>';
       }
@@ -1143,7 +1171,6 @@ function renderChartPrint(pontos){
     return '<path d="'+d.trim()+'" fill="none" stroke="'+cor+'" stroke-width="2"/>' + pts;
   }
 
-  // Grelha e escala da zona de pressão
   var gridTop = [];
   for(var g=0; g<=3; g++){
     var v = minP + (maxP-minP) * (g/3);
@@ -1152,13 +1179,11 @@ function renderChartPrint(pontos){
     gridTop.push('<text x="4" y="'+(parseFloat(yy)+5).toFixed(1)+'" font-size="'+fzEixo+'" fill="#666">'+Math.round(v)+'</text>');
   }
   gridTop.push('<text x="'+padL+'" y="'+(topY0-96)+'" font-size="'+fzTitulo+'" font-weight="700" fill="#333">Tensão arterial (mmHg)</text>');
-  // Linhas do valor ideal, para ver de imediato se está acima ou abaixo
   gridTop.push('<line x1="'+padL+'" y1="'+yPressao(IDEAL_SIS).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yPressao(IDEAL_SIS).toFixed(1)+'" stroke="#a9782e" stroke-width="1.6" stroke-dasharray="7,5" opacity=".8"/>');
   gridTop.push('<text x="'+(W-padR)+'" y="'+(yPressao(IDEAL_SIS)-6).toFixed(1)+'" font-size="'+fzEixo+'" font-weight="700" fill="#a9782e" text-anchor="end">Ideal sistólica '+IDEAL_SIS+'</text>');
   gridTop.push('<line x1="'+padL+'" y1="'+yPressao(IDEAL_DIA).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yPressao(IDEAL_DIA).toFixed(1)+'" stroke="#8a2c3d" stroke-width="1.6" stroke-dasharray="7,5" opacity=".8"/>');
   gridTop.push('<text x="'+(W-padR)+'" y="'+(yPressao(IDEAL_DIA)-6).toFixed(1)+'" font-size="'+fzEixo+'" font-weight="700" fill="#8a2c3d" text-anchor="end">Ideal diastólica '+IDEAL_DIA+'</text>');
 
-  // Grelha e escala da zona de pulso (separada, com o seu próprio eixo)
   var gridBot = '';
   if(temPulso){
     var linhasBot = [];
@@ -1175,7 +1200,7 @@ function renderChartPrint(pontos){
       '<text x="'+(W-padR)+'" y="'+(yPulso(IDEAL_BPM)-6).toFixed(1)+'" font-size="'+fzEixo+'" font-weight="700" fill="#2f6f8f" text-anchor="end">Ideal pulso '+IDEAL_BPM+'</text>';
   }
 
-  // Hora de cada medição, numa faixa própria por cima da zona de pressão (não em cima dos valores)
+  // Hora de cada medição, numa faixa própria acima do gráfico
   var horas = pontos.map(function(p,i){
     if(i % passoLabel !== 0) return '';
     var px = x(i).toFixed(1), py = (topY0 - 46).toFixed(1);
@@ -1183,17 +1208,26 @@ function renderChartPrint(pontos){
       '<line x1="'+px+'" y1="'+(topY0-38)+'" x2="'+px+'" y2="'+topY0+'" stroke="#ccc" stroke-width="1" stroke-dasharray="2,3"/>';
   }).join('');
 
-  var labelsX = pontos.map(function(p,i){
-    if(i % passoLabel !== 0) return '';
-    var px = x(i).toFixed(1), py = (H - padB + 22);
-    return '<text x="'+px+'" y="'+py+'" font-size="'+fzData+'" fill="#555" text-anchor="end" transform="rotate(-50 '+px+' '+py+')">'+fd(p.data).slice(0,5)+'</text>';
-  }).join('');
+  // Datas a preto e na horizontal — uma vez por dia (centrada nas leituras desse dia),
+  // com um traço vertical a separar cada dia
+  var labelsX = '', separadores = '';
+  diasPagina.forEach(function(d){
+    var idxs = [];
+    pontos.forEach(function(p,i){ if(p.data === d) idxs.push(i); });
+    if(!idxs.length) return;
+    var xMed = idxs.reduce(function(s,i){ return s + x(i); }, 0) / idxs.length;
+    labelsX += '<text x="'+xMed.toFixed(1)+'" y="'+(H-padB+30)+'" font-size="'+fzData+'" font-weight="700" fill="#000" text-anchor="middle">'+fd(d).slice(0,5)+'</text>';
+    var xIni = x(idxs[0]) - 14;
+    if(xIni > padL + 2){
+      separadores += '<line x1="'+xIni.toFixed(1)+'" y1="'+topY0+'" x2="'+xIni.toFixed(1)+'" y2="'+(temPulso?botY1:topY1)+'" stroke="#eee" stroke-width="1"/>';
+    }
+  });
 
   var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">' +
-    gridTop.join('') + gridBot +
-    linha('dia','#8a2c3d','esq',yPressao) +
-    linha('sis','#a9782e','dir',yPressao) +
-    (temPulso ? linha('bpm','#2f6f8f','dir',yPulso) : '') +
+    gridTop.join('') + gridBot + separadores +
+    linha('dia','#8a2c3d',yPressao,18) +
+    linha('sis','#a9782e',yPressao,-16) +
+    (temPulso ? linha('bpm','#2f6f8f',yPulso,-16) : '') +
     horas + labelsX +
   '</svg>';
 
