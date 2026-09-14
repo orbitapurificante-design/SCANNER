@@ -98,6 +98,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 .fatPago{width:28px;height:28px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:.15s}
 .fatPago.sim{background:var(--gr);border-color:var(--gr);color:#fff}
 .fatPago.nao{background:#fff;border-color:#ddd;color:#ddd}
+.fatPago.parcial{background:var(--s);border-color:var(--s);color:#fff}
+.relPago.p{background:rgba(26,74,138,.12);color:var(--s)}
+.pagLinha{display:flex;align-items:center;justify-content:space-between;background:#eef2f7;border-radius:10px;padding:9px 10px;margin-bottom:6px;font-size:12px}
+.pagLinha .pgInfo{display:flex;flex-direction:column;gap:1px}
+.pagLinha .pgVal{font-weight:800;color:var(--n);font-size:13px}
+.pagLinha .pgMeta{font-size:10px;color:var(--mu)}
+.btnDelPag{background:none;border:none;color:var(--r);font-size:16px;cursor:pointer;padding:0 0 0 8px;line-height:1;flex-shrink:0}
+.chequeLinha{display:flex;gap:6px;margin-bottom:6px;align-items:center}
 
 /* Select custom */
 .sel{width:100%;padding:12px 14px;background:#eef2f7;border:1.5px solid rgba(26,74,138,.14);border-radius:12px;font-size:15px;color:var(--n);outline:none;margin-bottom:10px;font-family:'DM Sans',sans-serif;-webkit-appearance:none;cursor:pointer}
@@ -422,8 +430,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
     <div class="s">
 
       <div class="card no-print">
-        <div class="ct">Período</div>
-        <div class="row2">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
+          <div class="ct" style="margin-bottom:0">Período</div>
+          <div id="relDataUnica" style="display:none;font-size:20px;font-weight:800;color:var(--n)"></div>
+        </div>
+        <div class="row2" style="margin-top:12px">
           <div>
             <label class="lbl">De</label>
             <input class="inp" id="relDe" type="date" style="margin-bottom:0" onchange="renderRelatorio()">
@@ -534,7 +545,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
       </div>
       <div>
         <label class="lbl">Valor €</label>
-        <input class="inp" type="number" step="0.01" id="eFatValor" style="margin-bottom:0">
+        <input class="inp" type="number" step="0.01" id="eFatValor" style="margin-bottom:0" oninput="renderPagamentosEdit()">
       </div>
     </div>
     <div class="check-row" style="margin-top:8px">
@@ -570,6 +581,52 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
       </div>
     </div>
 
+    <!-- ── PAGAMENTOS POR CONTA / PARCELAS ── -->
+    <div style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="ct" style="margin-bottom:0">💶 Pagamentos por Conta</div>
+        <button onclick="adicionarPagamento()" style="background:linear-gradient(135deg,var(--g),var(--gl));border:none;color:var(--n);font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif">+ Adicionar</button>
+      </div>
+      <div id="eFatPagamentos"></div>
+      <!-- Caixa para novo pagamento -->
+      <div id="addPagBox" style="display:none;background:#eef2f7;border-radius:12px;padding:12px;margin-bottom:10px">
+        <div class="row2">
+          <div>
+            <label class="lbl">Data</label>
+            <input type="date" id="novoPagData" style="width:100%;padding:9px 10px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px">
+          </div>
+          <div>
+            <label class="lbl">Valor €</label>
+            <input type="number" step="0.01" id="novoPagValor" placeholder="0.00" style="width:100%;padding:9px 10px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px">
+          </div>
+        </div>
+        <label class="lbl">Método de pagamento</label>
+        <select id="novoPagMetodo" onchange="onChangeMetodoPagamento()" style="width:100%;padding:9px 10px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px">
+          <option value="dinheiro">💵 Dinheiro</option>
+          <option value="cheque">🧾 Cheque</option>
+          <option value="outro">💳 Outro</option>
+        </select>
+        <div id="novoPagChequeWrap" style="display:none">
+          <div class="row2">
+            <div>
+              <label class="lbl">Nº do cheque</label>
+              <input type="text" id="novoPagChequeNum" style="width:100%;padding:9px 10px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px">
+            </div>
+            <div>
+              <label class="lbl">Banco (opcional)</label>
+              <input type="text" id="novoPagChequeBanco" style="width:100%;padding:9px 10px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:10px;font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:8px">
+            </div>
+          </div>
+        </div>
+        <label class="lbl">Observações (opcional)</label>
+        <textarea id="novoPagObs" placeholder="Detalhes adicionais..." style="width:100%;padding:10px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:10px;font-size:13px;color:var(--n);outline:none;font-family:'DM Sans',sans-serif;resize:vertical;min-height:50px;margin-bottom:8px"></textarea>
+        <div style="display:flex;gap:8px">
+          <button onclick="cancelarPagamento()" style="flex:1;padding:10px;background:#fff;border:1.5px solid #ddd;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--mu)">Cancelar</button>
+          <button onclick="confirmarPagamento()" style="flex:2;padding:10px;background:var(--n);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">✓ Guardar Pagamento</button>
+        </div>
+      </div>
+    </div>
+
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="bD" onclick="eliminarFaturaEdit()" style="flex:1;margin-bottom:0">🗑 Eliminar</button>
       <button class="bP" onclick="guardarFaturaEdit()" style="flex:2">💾 Guardar</button>
@@ -596,6 +653,42 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
       <button onclick="fecharModal('mCli')" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--mu)">×</button>
     </div>
     <div id="mCliBody"></div>
+  </div>
+</div>
+
+<!-- MODAL REGISTAR PAGAMENTO (DINHEIRO + CHEQUES) DE VÁRIAS FATURAS -->
+<div class="modal" id="mPagCliente">
+  <div class="mBox">
+    <div class="mTit">
+      <span>💶 Registar Pagamento</span>
+      <button onclick="fecharModal('mPagCliente')" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--mu)">×</button>
+    </div>
+
+    <label class="lbl">Faturas incluídas</label>
+    <div id="pagCliFaturas" style="background:#eef2f7;border-radius:10px;padding:8px 10px;margin-bottom:12px;max-height:140px;overflow-y:auto"></div>
+
+    <label class="lbl">Data do pagamento</label>
+    <input class="inp" type="date" id="pagCliData">
+
+    <label class="lbl">💵 Dinheiro (€)</label>
+    <input class="inp" type="number" step="0.01" id="pagCliDinheiro" placeholder="0.00" oninput="atualizarPagCliTotais()">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;margin-bottom:8px">
+      <label class="lbl" style="margin-bottom:0">🧾 Cheques</label>
+      <button onclick="addChequeLinha()" style="background:linear-gradient(135deg,var(--g),var(--gl));border:none;color:var(--n);font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif">+ Adicionar cheque</button>
+    </div>
+    <div id="pagCliChequesLista"></div>
+
+    <div style="background:#eef2f7;border-radius:10px;padding:10px 12px;margin-top:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Total a pagar</span><span id="pagCliTotalAPagar" style="font-weight:800">0.00€</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Total inserido</span><span id="pagCliTotalInserido" style="font-weight:800">0.00€</span></div>
+      <div id="pagCliDif" style="font-size:12px;font-weight:700;text-align:right"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="bD" onclick="fecharModal('mPagCliente')" style="flex:1;margin-bottom:0">Cancelar</button>
+      <button class="bP" onclick="confirmarPagamentoCliente()" style="flex:2">✓ Confirmar Pagamento</button>
+    </div>
   </div>
 </div>
 
@@ -818,6 +911,9 @@ function fazerBipe(tipo) {
 const _hj = new Date(); const HOJE = `${_hj.getFullYear()}-${String(_hj.getMonth()+1).padStart(2,'0')}-${String(_hj.getDate()).padStart(2,'0')}`;
 let DB_CLIENTES = [];
 let FATURAS = []; // carregadas do Supabase
+let _pagCliSelecionados = new Set();
+let _pagCliContext = null;
+let _pagCliCheques = [];
 let FILTRO_FAT = 3;
 let _camAtiva = false;
 let _scanInterval = null;
@@ -927,7 +1023,8 @@ async function guardarFaturaSupabase(fat, isSync = false) {
     comercial: fat.comercial || null,
     criado_em: fat.criadoEm || new Date().toISOString(),
     data_recebimento: fat.dataRecebimento || null,
-    notas: fat.notas || []
+    notas: fat.notas || [],
+    pagamentos: fat.pagamentos || []
   };
   try {
     const { error } = await db.from('faturas').insert(d);
@@ -968,7 +1065,8 @@ async function actualizarFaturaSupabase(fat) {
       valor: parseFloat(fat.valor) || 0,
       pago: fat.pago || false, comercial: fat.comercial || null,
       data_recebimento: fat.dataRecebimento || null,
-      notas: fat.notas || []
+      notas: fat.notas || [],
+      pagamentos: fat.pagamentos || []
     }).eq('id', fat.id);
     if(error) throw error;
     return true;
@@ -995,7 +1093,7 @@ async function carregarFaturas() {
     // Carregar TODAS as faturas sempre — necessário para calcular pendentes por cliente
     // O filtro por comercial é feito em memória no getFaturasFiltradas()
     const { data, error } = await db.from('faturas')
-      .select('id,nome,nif,tipo,num,data,valor,pago,comercial,criado_em,data_recebimento,notas')
+      .select('id,nome,nif,tipo,num,data,valor,pago,comercial,criado_em,data_recebimento,notas,pagamentos')
       .order('data', { ascending: true });
     if(error) throw error;
     FATURAS = (data || []).map(f => ({
@@ -1003,7 +1101,8 @@ async function carregarFaturas() {
       num: f.num, data: f.data, valor: parseFloat(f.valor) || 0,
       pago: f.pago || false, comercial: f.comercial, criadoEm: f.criado_em,
       dataRecebimento: f.data_recebimento || null,
-      notas: f.notas || []
+      notas: f.notas || [],
+      pagamentos: f.pagamentos || []
     }));
     console.log('✅ Faturas carregadas:', FATURAS.length);
     esconderErroDB();
@@ -1356,7 +1455,8 @@ function processarQR(texto) {
   } catch(e) {
     // Mostrar raw se não conseguir parsear
     document.getElementById('fNum').value = texto.substring(0,50);
-    toast('⚠️ QR lido. Verifique os dados manualmente.');
+    document.getElementById('fData').value = '';
+    toast('⚠️ QR lido. Verifique os dados manualmente, incluindo a data de emissão.');
   }
 }
 
@@ -1382,11 +1482,11 @@ function parsearFaturaQR(raw) {
   if(campos['B']) resultado.nifCliente = campos['B'];
   // Tipo documento: FT, FS, etc.
   if(campos['D']) resultado.tipo = campos['D'].substring(0,2).toUpperCase();
-  // Data: AAAAMMDD
+  // Data de emissão do documento: AAAAMMDD (campo F do QR da AT)
   if(campos['F']) {
-    const d = campos['F'];
+    const d = campos['F'].replace(/\D/g,'');
     if(d.length === 8) resultado.data = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
-    else resultado.data = d;
+    else if(/^\d{4}-\d{2}-\d{2}$/.test(campos['F'])) resultado.data = campos['F'];
   }
   // Nº documento
   if(campos['G']) resultado.numero = campos['G'];
@@ -1405,7 +1505,11 @@ function parsearFaturaQR(raw) {
 function preencherForm(d) {
   if(d.tipo) document.getElementById('fTipo').value = d.tipo;
   if(d.numero) document.getElementById('fNum').value = d.numero;
-  if(d.data) document.getElementById('fData').value = d.data;
+  // A data do documento tem de ser SEMPRE a data de emissão lida do QR.
+  // Se o QR não trouxer data válida, limpa o campo em vez de deixar a data de
+  // hoje (que é só a data em que o documento está a ser inserido na app).
+  document.getElementById('fData').value = d.data || '';
+  if(!d.data) toast('⚠️ Data de emissão não encontrada no QR — confirme manualmente!');
   if(d.valor) document.getElementById('fValor').value = d.valor.toFixed(2);
 
   // Mostrar NIF do comprador (B) se não for consumidor final
@@ -1604,6 +1708,8 @@ function renderFaturas() {
     const cor = {FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo] || 'nd';
     const dataFmt = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '';
     const isNC = f.tipo === 'NC';
+    const estadoPag = estadoPagamentoFatura(f);
+    const totalPago = totalPagoFatura(f);
     // Localizar cliente — matching normalizado por nome e denom
     const cli = clienteDaFatura(f);
     const temLoc = cli && (parseFloat(cli.lat) || cli.rua || cli.localidade);
@@ -1613,14 +1719,14 @@ function renderFaturas() {
       <div class="fatBadge ${cor}">${f.tipo}</div>
       <div class="fatInfo">
         <div class="fatNome">${esc(f.nome)}</div>
-        <div class="fatSub">${esc(f.num)} · ${dataFmt}${f.nif ? ' · NIF: '+f.nif : ''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}${(f.notas&&f.notas.length>0)?` · <span style="color:${f.notas.some(n=>!n.resolvida)?'#c9a84c':'var(--gr)'}">⚠️ ${f.notas.length} nota(s)</span>`:''}</div>
+        <div class="fatSub">${isNC?`<span style="color:var(--r);font-weight:700">${esc(f.num)}</span>`:esc(f.num)} · ${dataFmt}${f.nif ? ' · NIF: '+f.nif : ''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}${estadoPag==='parcial'?` · <span style="color:var(--s);font-weight:700">💶 pago por conta: ${totalPago.toFixed(2)}€</span>`:''}${(f.notas&&f.notas.length>0)?` · <span style="color:${f.notas.some(n=>!n.resolvida)?'#c9a84c':'var(--gr)'}">⚠️ ${f.notas.length} nota(s)</span>`:''}</div>
         ${moradaCli && !f.pago && !isNC ? `<div class="moradaCli">📍 ${esc(moradaCli)}</div>` : ''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
-        <div class="fatVal" style="color:${isNC?'var(--gr)':f.pago?'var(--gr)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</div>
+        <div class="fatVal" style="color:${isNC?'var(--gr)':f.pago?'var(--gr)':estadoPag==='parcial'?'var(--s)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</div>
         <div style="display:flex;align-items:center;gap:5px">
           ${btnIr}
-          <div class="fatPago ${f.pago?'sim':'nao'}" onclick="event.stopPropagation();togglePago('${f.id}');" title="${f.pago?'Pago':'Pendente'}">
+          <div class="fatPago ${f.pago?'sim':estadoPag==='parcial'?'parcial':'nao'}" onclick="event.stopPropagation();togglePago('${f.id}');" title="${f.pago?'Pago':estadoPag==='parcial'?'Pago parcialmente — falta '+(parseFloat(f.valor)-totalPago).toFixed(2)+'€':'Pendente'}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
         </div>
@@ -1629,6 +1735,20 @@ function renderFaturas() {
   }).join('');
 
   actualizarStats();
+}
+
+// ═══════════════════════════════════════════
+// PAGAMENTOS POR CONTA / PARCELAS
+// ═══════════════════════════════════════════
+function totalPagoFatura(f) {
+  if(!f.pagamentos || !f.pagamentos.length) return 0;
+  return f.pagamentos.reduce((s,p) => s + (parseFloat(p.valor)||0), 0);
+}
+
+function estadoPagamentoFatura(f) {
+  if(f.pago) return 'pago';
+  if(totalPagoFatura(f) > 0.004) return 'parcial';
+  return 'pendente';
 }
 
 async function togglePago(id) {
@@ -1760,13 +1880,19 @@ async function recarregarClientes() {
   }
 }
 
-function verCliente(nome) {
+function verCliente(nome, manterSelecao) {
+  if(!manterSelecao) _pagCliSelecionados = new Set();
   const cli = DB_CLIENTES.find(c => c.nome === nome || c.denom === nome);
   const nomeMostrar = (cli && cli.denom) ? cli.denom : nome;
 
   // Faturas do cliente — matching normalizado
   const fatsCli = FATURAS.filter(f => faturaDoCliente(f, cli) ||
     nn(f.nome) === nn(nome) || nn(f.nome) === nn(nomeMostrar));
+
+  // Limpar seleção de faturas que já não são elegíveis (pagas, eliminadas, etc.)
+  [..._pagCliSelecionados].forEach(id => {
+    if(!fatsCli.find(f => f.id === id && !f.pago && f.tipo !== 'NC')) _pagCliSelecionados.delete(id);
+  });
 
   // Para comercial: pendente só das suas faturas; admin vê tudo
   const fatsParaTotal = (!IS_ADMIN && COMERCIAL_ATUAL)
@@ -1779,6 +1905,10 @@ function verCliente(nome) {
 
   const morada = cli ? [cli.rua, cli.localidade].filter(Boolean).join(', ') : '';
   const temLoc = cli && (parseFloat(cli.lat) || cli.rua || cli.localidade);
+
+  const nSel = _pagCliSelecionados.size;
+  let totalSel = 0;
+  fatsCli.forEach(f => { if(_pagCliSelecionados.has(f.id)) totalSel += (parseFloat(f.valor)||0) - totalPagoFatura(f); });
 
   document.getElementById('mCliTit').textContent = nomeMostrar;
   document.getElementById('mCliBody').innerHTML = `
@@ -1793,26 +1923,168 @@ function verCliente(nome) {
       <div class="sItem"><div class="sVal" style="color:var(--gr);font-size:18px">${pagas.toFixed(2)}€</div><div class="sLbl">Pago</div></div>
       <div class="sItem"><div class="sVal" style="color:${pend>0?'var(--r)':'var(--gr)'};font-size:18px">${pend.toFixed(2)}€</div><div class="sLbl">Pendente</div></div>
     </div>
+    ${pend > 0.004 ? `<div style="font-size:11px;color:var(--mu);margin-bottom:6px">☑️ Marca as faturas para registar um pagamento (dinheiro e/ou cheques) de uma vez</div>` : ''}
     ${fatsCli.length ? fatsCli.map(f => {
       const isNC = f.tipo === 'NC';
+      const estadoPag = estadoPagamentoFatura(f);
+      const totalPago = totalPagoFatura(f);
+      const elegivel = !isNC && !f.pago;
       const btnIr2 = (!f.pago && temLoc && !isNC) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${parseFloat(cli.lat)||'null'},${parseFloat(cli.lng)||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
       return `<div class="fatRow">
+        ${elegivel ? `<div class="checkBox ${_pagCliSelecionados.has(f.id)?'on':''}" style="width:22px;height:22px;flex-shrink:0" onclick="togglePagCliSelecao('${f.id}','${nome.replace(/'/g,"\\'")}')"></div>` : `<div style="width:22px;flex-shrink:0"></div>`}
         <div class="fatBadge ${{FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo]||'nd'}">${f.tipo}</div>
         <div class="fatInfo">
-          <div class="fatNome">${esc(f.num)}</div>
-          <div class="fatSub">${f.data?f.data.split('-').reverse().join('/'):'—'}${f.comercial&&IS_ADMIN?` · <span style="color:var(--s);font-size:10px">${esc(NOMES_CONFIG[f.comercial]||f.comercial)}</span>`:''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}</div>
+          <div class="fatNome" style="${isNC?'color:var(--r)':''}">${esc(f.num)}</div>
+          <div class="fatSub">${f.data?f.data.split('-').reverse().join('/'):'—'}${f.comercial&&IS_ADMIN?` · <span style="color:var(--s);font-size:10px">${esc(NOMES_CONFIG[f.comercial]||f.comercial)}</span>`:''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}${estadoPag==='parcial'?` · <span style="color:var(--s);font-weight:700">💶 falta ${((parseFloat(f.valor)||0)-totalPago).toFixed(2)}€</span>`:''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-weight:800;color:${isNC?'var(--gr)':f.pago?'var(--gr)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</span>
+          <span style="font-weight:800;color:${isNC?'var(--gr)':f.pago?'var(--gr)':estadoPag==='parcial'?'var(--s)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</span>
           ${btnIr2}
-          <div class="fatPago ${f.pago?'sim':'nao'}" onclick="togglePago('${f.id}');verCliente('${nome.replace(/'/g,"\\'")}')">
+          <div class="fatPago ${f.pago?'sim':estadoPag==='parcial'?'parcial':'nao'}" onclick="togglePago('${f.id}');verCliente('${nome.replace(/'/g,"\\'")}',true)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
         </div>
       </div>`;
     }).join('') : '<div style="text-align:center;padding:20px;color:var(--mu)">Sem faturas</div>'}
   `;
+
+  // Barra flutuante para registar pagamento múltiplo
+  let barra = document.getElementById('mCliBarraPag');
+  if(!barra) {
+    barra = document.createElement('div');
+    barra.id = 'mCliBarraPag';
+    document.getElementById('mCli').querySelector('.mBox').appendChild(barra);
+  }
+  if(nSel > 0) {
+    barra.style.cssText = 'position:sticky;bottom:0;left:0;right:0;background:#fff;border-top:1.5px solid #eee;margin-top:10px;padding-top:10px';
+    barra.innerHTML = `<button class="bP" style="width:100%" onclick="abrirPagamentoCliente('${nome.replace(/'/g,"\\'")}')">💶 Registar Pagamento — ${nSel} fatura(s) · ${totalSel.toFixed(2)}€</button>`;
+  } else {
+    barra.innerHTML = '';
+  }
   document.getElementById('mCli').classList.add('a');
+}
+
+function togglePagCliSelecao(id, nome) {
+  if(_pagCliSelecionados.has(id)) _pagCliSelecionados.delete(id);
+  else _pagCliSelecionados.add(id);
+  verCliente(nome, true);
+}
+
+// ═══════════════════════════════════════════
+// PAGAMENTO MÚLTIPLO (DINHEIRO + CHEQUES) DE VÁRIAS FATURAS
+// ═══════════════════════════════════════════
+function abrirPagamentoCliente(nome) {
+  if(_pagCliSelecionados.size === 0) { toast('⚠️ Seleciona pelo menos uma fatura'); return; }
+  const ids = [..._pagCliSelecionados];
+  const faturas = FATURAS.filter(f => ids.includes(f.id)).sort((a,b) => (a.data||'').localeCompare(b.data||''));
+  _pagCliContext = { nome, ids: faturas.map(f => f.id) };
+  _pagCliCheques = [];
+  document.getElementById('pagCliData').value = HOJE;
+  document.getElementById('pagCliDinheiro').value = '';
+  renderPagCliFaturas(faturas);
+  renderPagCliCheques();
+  atualizarPagCliTotais();
+  document.getElementById('mPagCliente').classList.add('a');
+}
+
+function renderPagCliFaturas(faturas) {
+  document.getElementById('pagCliFaturas').innerHTML = faturas.map(f => {
+    const falta = (parseFloat(f.valor)||0) - totalPagoFatura(f);
+    return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #eee">
+      <span>${esc(f.tipo)} ${esc(f.num)} <span style="color:var(--mu)">${f.data?f.data.split('-').reverse().join('/'):''}</span></span>
+      <span style="font-weight:700">${falta.toFixed(2)}€</span>
+    </div>`;
+  }).join('');
+}
+
+function renderPagCliCheques() {
+  const cont = document.getElementById('pagCliChequesLista');
+  cont.innerHTML = _pagCliCheques.map((c,i) => `
+    <div class="chequeLinha">
+      <input type="number" step="0.01" placeholder="Valor €" value="${c.valor||''}" style="flex:1;padding:8px;border:1.5px solid #ddd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif" oninput="_pagCliCheques[${i}].valor=this.value;atualizarPagCliTotais()">
+      <input type="text" placeholder="Nº cheque" value="${esc(c.num||'')}" style="flex:1;padding:8px;border:1.5px solid #ddd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif" oninput="_pagCliCheques[${i}].num=this.value">
+      <input type="text" placeholder="Banco (opc.)" value="${esc(c.banco||'')}" style="flex:1;padding:8px;border:1.5px solid #ddd;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif" oninput="_pagCliCheques[${i}].banco=this.value">
+      <button class="btnDelPag" onclick="_pagCliCheques.splice(${i},1);renderPagCliCheques();atualizarPagCliTotais()" title="Remover">×</button>
+    </div>`).join('');
+}
+
+function addChequeLinha() {
+  _pagCliCheques.push({ valor:'', num:'', banco:'' });
+  renderPagCliCheques();
+}
+
+function atualizarPagCliTotais() {
+  if(!_pagCliContext) return;
+  const faturas = FATURAS.filter(f => _pagCliContext.ids.includes(f.id));
+  const totalAPagar = faturas.reduce((s,f) => s + ((parseFloat(f.valor)||0) - totalPagoFatura(f)), 0);
+  const dinheiro = parseFloat(document.getElementById('pagCliDinheiro').value) || 0;
+  const totalCheques = _pagCliCheques.reduce((s,c) => s + (parseFloat(c.valor)||0), 0);
+  const totalInserido = dinheiro + totalCheques;
+  const dif = totalInserido - totalAPagar;
+  document.getElementById('pagCliTotalAPagar').textContent = totalAPagar.toFixed(2) + '€';
+  document.getElementById('pagCliTotalInserido').textContent = totalInserido.toFixed(2) + '€';
+  const elDif = document.getElementById('pagCliDif');
+  if(Math.abs(dif) < 0.005) { elDif.textContent = '✓ Valores coincidem'; elDif.style.color = 'var(--gr)'; }
+  else if(dif < 0) { elDif.textContent = 'Falta ' + Math.abs(dif).toFixed(2) + '€ (fica pago por conta)'; elDif.style.color = '#c9a84c'; }
+  else { elDif.textContent = 'Sobra ' + dif.toFixed(2) + '€'; elDif.style.color = 'var(--s)'; }
+}
+
+function confirmarPagamentoCliente() {
+  if(!_pagCliContext) return;
+  const dataPag = document.getElementById('pagCliData').value || HOJE;
+  const dinheiro = parseFloat(document.getElementById('pagCliDinheiro').value) || 0;
+  const cheques = _pagCliCheques.filter(c => (parseFloat(c.valor)||0) > 0);
+
+  // Monta a "carteira" de fundos disponíveis: dinheiro primeiro, depois cada cheque
+  const fundos = [];
+  if(dinheiro > 0.004) fundos.push({ metodo:'dinheiro', valor: dinheiro, chequeNum:'', chequeBanco:'' });
+  cheques.forEach(c => fundos.push({ metodo:'cheque', valor: parseFloat(c.valor)||0, chequeNum: c.num||'', chequeBanco: c.banco||'' }));
+
+  if(fundos.length === 0) { toast('⚠️ Indica o valor em dinheiro e/ou cheques'); return; }
+
+  const reciboId = 'R' + Date.now().toString(36).toUpperCase();
+  const faturas = FATURAS.filter(f => _pagCliContext.ids.includes(f.id)).sort((a,b) => (a.data||'').localeCompare(b.data||''));
+  const afetadas = [];
+  let fi = 0;
+
+  faturas.forEach(f => {
+    let falta = (parseFloat(f.valor)||0) - totalPagoFatura(f);
+    if(falta <= 0.004) return;
+    if(!f.pagamentos) f.pagamentos = [];
+    while(falta > 0.004 && fi < fundos.length) {
+      const fundo = fundos[fi];
+      const usar = Math.min(falta, fundo.valor);
+      f.pagamentos.push({
+        id: 'p' + Date.now() + Math.random().toString(36).slice(2,7),
+        data: dataPag, valor: usar, metodo: fundo.metodo,
+        chequeNum: fundo.chequeNum, chequeBanco: fundo.chequeBanco,
+        obs: 'Pagamento conjunto · Recibo ' + reciboId
+      });
+      fundo.valor -= usar;
+      falta -= usar;
+      if(fundo.valor <= 0.004) fi++;
+    }
+    if(falta <= 0.004) { f.pago = true; f.dataRecebimento = dataPag; }
+    afetadas.push(f);
+  });
+
+  let sobraReal = 0;
+  if(fi < fundos.length) sobraReal += fundos[fi].valor;
+  for(let k = fi+1; k < fundos.length; k++) sobraReal += fundos[k].valor;
+
+  Promise.all(afetadas.map(f => actualizarFaturaSupabase(f))).then(() => {
+    renderFaturas();
+    renderRelatorio();
+    actualizarStats();
+    verificarPendentes();
+  });
+
+  fecharModal('mPagCliente');
+  _pagCliSelecionados = new Set();
+  const nomeCli = _pagCliContext.nome;
+  _pagCliContext = null;
+  verCliente(nomeCli, true);
+  toast(`✅ Pagamento registado (Recibo ${reciboId})${sobraReal>0.01?' — sobra '+sobraReal.toFixed(2)+'€ não atribuída':''}`);
 }
 
 // ═══════════════════════════════════════════
@@ -1822,6 +2094,17 @@ function renderRelatorio() {
   const de  = document.getElementById('relDe')?.value;
   const ate = document.getElementById('relAte')?.value;
   if(!de || !ate) return;
+
+  // Se o período é um único dia, mostra essa data em destaque no canto superior direito
+  const elDataUnica = document.getElementById('relDataUnica');
+  if(elDataUnica) {
+    if(de === ate) {
+      elDataUnica.textContent = de.split('-').reverse().join('/');
+      elDataUnica.style.display = 'block';
+    } else {
+      elDataUnica.style.display = 'none';
+    }
+  }
 
   // Filtrar por comercial
   let lista = (IS_ADMIN || !COMERCIAL_ATUAL)
@@ -1911,9 +2194,9 @@ function renderRelatorio() {
     return `<div class="relRow" onclick="editarFatura('${f.id}')" style="cursor:pointer">
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.nome)}</div>
-        <div style="font-size:11px;color:var(--mu);display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <div style="font-size:11px;color:var(--n);display:flex;align-items:center;gap:4px;flex-wrap:wrap">
           <span class="fatBadge ${cor}" style="width:auto;height:auto;padding:1px 5px;font-size:9px;border-radius:4px">${f.tipo}</span>
-          ${esc(f.num)} · Fat: ${dataFmt}${hora?' · Rec: '+hora:''}
+          ${isNC?`<span style="color:var(--r);font-weight:700">${esc(f.num)}</span>`:esc(f.num)} · Fat: ${dataFmt}${hora?' · Rec: '+hora:''}
           ${isNC?'· <span style="color:var(--gr);font-weight:700;font-size:10px">DESCONTO</span>':''}
           ${IS_ADMIN && f.comercial ? `· <span style="color:var(--s);font-size:10px">${esc(NOMES_CONFIG[f.comercial]||f.comercial)}</span>` : ''}
         </div>
@@ -2013,7 +2296,7 @@ function imprimirFaturas() {
       <td>${i+1}</td>
       <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
       <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
-      <td>${esc(f.num)}</td>
+      <td style="${isNC?'color:#c0392b;font-weight:700':''}">${esc(f.num)}</td>
       <td style="text-align:center">${dataFmt}</td>
       <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
       <td style="text-align:center"><span style="background:${f.pago?'#d4edda':'#f8d7da'};color:${f.pago?'#155724':'#721c24'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${f.pago?'PAGO':'PEND.'}</span></td>
@@ -2071,7 +2354,7 @@ function imprimirRelatorio() {
         <td>${i+1}</td>
         <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
         <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
-        <td>${esc(f.num)}</td>
+        <td style="${isNC?'color:#c0392b;font-weight:700':''}">${esc(f.num)}</td>
         <td style="text-align:center">${dataFat}</td>
         <td style="text-align:center;font-size:11px">${dataRec}</td>
         <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
@@ -2080,8 +2363,13 @@ function imprimirRelatorio() {
     });
 
     abrirJanelaImpressao(`
-      <h2 style="margin:0 0 4px;color:#0a1628">RELATÓRIO DE DOCUMENTOS</h2>
-      <div style="color:#666;font-size:12px;margin-bottom:16px">Período: ${deFmt} a ${ateFmt} · Impresso em ${hoje} · ${lista.length} documentos</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <h2 style="margin:0 0 4px;color:#0a1628">RELATÓRIO DE DOCUMENTOS</h2>
+          <div style="color:#666;font-size:12px">Período: ${deFmt} a ${ateFmt} · Impresso em ${hoje} · ${lista.length} documentos</div>
+        </div>
+        ${de===ate ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:24px;font-weight:800;color:#0a1628">${deFmt}</div></div>` : ''}
+      </div>
       <table><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Data Fat.</th><th>Rececionado</th><th style="text-align:right">Valor</th><th>Estado</th></tr></thead>
       <tbody>${corpoTabela}</tbody></table>
       <div class="totais">
@@ -2127,10 +2415,10 @@ function imprimirRelatorio() {
         <td>${numGlobal}</td>
         <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
         <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
-        <td>${esc(f.num)}</td>
+        <td style="${isNC?'color:#c0392b;font-weight:700':''}">${esc(f.num)}</td>
         <td style="text-align:center">${dataFat}</td>
         <td style="text-align:center;font-size:11px">${dataRec}</td>
-        <td style="font-size:11px;color:#555">${esc(nomeColab)}</td>
+        <td style="font-size:11px;color:#1a1a1a;font-weight:600">${esc(nomeColab)}</td>
         <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
         <td style="text-align:center"><span style="background:${f.pago?'#d4edda':'#f8d7da'};color:${f.pago?'#155724':'#721c24'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${f.pago?'PAGO':'PEND.'}</span></td>
       </tr>`;
@@ -2151,8 +2439,13 @@ function imprimirRelatorio() {
   });
 
   abrirJanelaImpressao(`
-    <h2 style="margin:0 0 4px;color:#0a1628">RELATÓRIO DE DOCUMENTOS — ADMIN</h2>
-    <div style="color:#666;font-size:12px;margin-bottom:16px">Período: ${deFmt} a ${ateFmt} · Impresso em ${hoje} · ${lista.length} documentos · ${ordemGrupos.length} colaborador(es)</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <h2 style="margin:0 0 4px;color:#0a1628">RELATÓRIO DE DOCUMENTOS — ADMIN</h2>
+        <div style="color:#666;font-size:12px">Período: ${deFmt} a ${ateFmt} · Impresso em ${hoje} · ${lista.length} documentos · ${ordemGrupos.length} colaborador(es)</div>
+      </div>
+      ${de===ate ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:24px;font-weight:800;color:#0a1628">${deFmt}</div></div>` : ''}
+    </div>
     <table><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Data Fat.</th><th>Rececionado</th><th>Colaborador</th><th style="text-align:right">Valor</th><th>Estado</th></tr></thead>
     <tbody>${corpoTabela}</tbody></table>
     <div class="totais">
@@ -2249,7 +2542,83 @@ function editarFatura(id) {
   _notasEdit = JSON.parse(JSON.stringify(f.notas || []));
   document.getElementById('addNotaBox').style.display = 'none';
   renderNotasEdit();
+  // Carregar pagamentos por conta / parcelas
+  _pagamentosEdit = JSON.parse(JSON.stringify(f.pagamentos || []));
+  document.getElementById('addPagBox').style.display = 'none';
+  renderPagamentosEdit();
   document.getElementById('mEditFat').classList.add('a');
+}
+
+// ── PAGAMENTOS POR CONTA / PARCELAS ─────────
+let _pagamentosEdit = [];
+
+function renderPagamentosEdit() {
+  const cont = document.getElementById('eFatPagamentos');
+  if(!cont) return;
+  const valorFat = parseFloat(document.getElementById('eFatValor').value) || 0;
+  const totalPago = _pagamentosEdit.reduce((s,p) => s + (parseFloat(p.valor)||0), 0);
+  const falta = valorFat - totalPago;
+  const iconeMetodo = { dinheiro: '💵', cheque: '🧾', outro: '💳' };
+  const nomeMetodo = { dinheiro: 'Dinheiro', cheque: 'Cheque', outro: 'Outro' };
+
+  let html = '';
+  if(_pagamentosEdit.length === 0) {
+    html += '<div style="text-align:center;color:var(--mu);font-size:12px;padding:6px 0 10px">Sem pagamentos por conta registados</div>';
+  } else {
+    html += _pagamentosEdit.map((p,i) => `
+      <div class="pagLinha">
+        <div class="pgInfo">
+          <span class="pgVal">${iconeMetodo[p.metodo]||'💶'} ${parseFloat(p.valor||0).toFixed(2)}€ <span style="font-weight:600;font-size:11px;color:var(--mu)">— ${nomeMetodo[p.metodo]||p.metodo}</span></span>
+          <span class="pgMeta">${p.data?fmtDataPT(p.data):''}${p.metodo==='cheque'&&(p.chequeNum||p.chequeBanco)?' · Nº '+esc(p.chequeNum||'—')+(p.chequeBanco?' · '+esc(p.chequeBanco):''):''}${p.obs?' · '+esc(p.obs):''}</span>
+        </div>
+        <button class="btnDelPag" onclick="_pagamentosEdit.splice(${i},1);renderPagamentosEdit()" title="Remover">×</button>
+      </div>`).join('');
+  }
+
+  if(totalPago > 0.004) {
+    html += `<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:8px 2px 0;color:${falta<=0.004?'var(--gr)':'var(--s)'}">
+      <span>${falta<=0.004?'✅ Valor totalmente coberto':'💶 Pago por conta'}</span>
+      <span>${totalPago.toFixed(2)}€ / ${valorFat.toFixed(2)}€${falta>0.004?' (falta '+falta.toFixed(2)+'€)':''}</span>
+    </div>`;
+  }
+  cont.innerHTML = html;
+}
+
+function adicionarPagamento() {
+  document.getElementById('addPagBox').style.display = 'block';
+  document.getElementById('novoPagData').value = HOJE;
+  document.getElementById('novoPagValor').value = '';
+  document.getElementById('novoPagMetodo').value = 'dinheiro';
+  document.getElementById('novoPagChequeWrap').style.display = 'none';
+  document.getElementById('novoPagChequeNum').value = '';
+  document.getElementById('novoPagChequeBanco').value = '';
+  document.getElementById('novoPagObs').value = '';
+}
+
+function cancelarPagamento() {
+  document.getElementById('addPagBox').style.display = 'none';
+}
+
+function onChangeMetodoPagamento() {
+  const metodo = document.getElementById('novoPagMetodo').value;
+  document.getElementById('novoPagChequeWrap').style.display = (metodo === 'cheque') ? 'block' : 'none';
+}
+
+function confirmarPagamento() {
+  const valor = parseFloat(document.getElementById('novoPagValor').value);
+  if(!valor || valor <= 0) { toast('⚠️ Indica o valor pago'); return; }
+  const metodo = document.getElementById('novoPagMetodo').value;
+  _pagamentosEdit.push({
+    id: 'p' + Date.now() + Math.random().toString(36).slice(2,7),
+    data: document.getElementById('novoPagData').value || HOJE,
+    valor: valor,
+    metodo: metodo,
+    chequeNum: metodo === 'cheque' ? document.getElementById('novoPagChequeNum').value.trim() : '',
+    chequeBanco: metodo === 'cheque' ? document.getElementById('novoPagChequeBanco').value.trim() : '',
+    obs: document.getElementById('novoPagObs').value.trim()
+  });
+  document.getElementById('addPagBox').style.display = 'none';
+  renderPagamentosEdit();
 }
 
 // ── NOTAS / FALTAS ──────────────────────────
@@ -2386,6 +2755,7 @@ async function guardarFaturaEdit() {
     FATURAS[idx].comercial = document.getElementById('eFatColab').value || null;
   }
   FATURAS[idx].notas = _notasEdit;
+  FATURAS[idx].pagamentos = _pagamentosEdit;
   await actualizarFaturaSupabase(FATURAS[idx]);
   fecharModal('mEditFat');
   renderFaturas(); renderRelatorio(); actualizarStats();
