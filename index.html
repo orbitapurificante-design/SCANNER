@@ -449,7 +449,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
       <!-- Resumo geral -->
       <div class="stat">
         <div class="sItem"><div class="sVal" id="relFats">0</div><div class="sLbl">Documentos</div></div>
-        <div class="sItem"><div class="sVal" id="relValPago" style="color:var(--gr);font-size:16px">0€</div><div class="sLbl">Pago</div></div>
+        <div class="sItem"><div class="sVal" id="relValPago" style="color:var(--gr);font-size:16px">0€</div><div class="sLbl">Recebido</div></div>
         <div class="sItem"><div class="sVal" id="relValPend" style="color:var(--r);font-size:16px">0€</div><div class="sLbl">Pendente</div></div>
       </div>
 
@@ -463,11 +463,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           </div>
           <div style="display:flex;justify-content:space-between;align-items:flex-end">
             <div>
-              <div style="color:rgba(255,255,255,.7);font-size:10px;font-weight:600">TOTAL</div>
+              <div style="color:rgba(255,255,255,.7);font-size:10px;font-weight:600">RECEBIDO</div>
               <div id="relHojeTotal" style="color:#fff;font-size:22px;font-weight:900;line-height:1">0.00€</div>
             </div>
             <div style="text-align:right">
-              <div style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700" id="relHojePago">✔ 0.00€ pago</div>
+              <div style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700" id="relHojePago">💶 0.00€ por conta</div>
               <div style="color:rgba(255,255,255,.75);font-size:11px;font-weight:700" id="relHojePend">⏳ 0.00€ pend.</div>
             </div>
           </div>
@@ -480,18 +480,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           </div>
           <div style="display:flex;justify-content:space-between;align-items:flex-end">
             <div>
-              <div style="color:var(--g);font-size:10px;font-weight:600">TOTAL</div>
+              <div style="color:var(--g);font-size:10px;font-weight:600">RECEBIDO</div>
               <div id="relAntTotal" style="color:#fff;font-size:22px;font-weight:900;line-height:1">0.00€</div>
             </div>
             <div style="text-align:right">
-              <div style="color:var(--g);font-size:11px;font-weight:700" id="relAntPago">✔ 0.00€ pago</div>
+              <div style="color:var(--g);font-size:11px;font-weight:700" id="relAntPago">💶 0.00€ por conta</div>
               <div style="color:var(--g);font-size:11px;font-weight:700" id="relAntPend">⏳ 0.00€ pend.</div>
             </div>
           </div>
         </div>
         <!-- Total combinado -->
         <div style="background:#fff;border:2px solid var(--n);border-radius:14px;padding:11px 15px;display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:12px;font-weight:800;color:var(--n);letter-spacing:.3px">🏁 TOTAL DO PERÍODO</span>
+          <span style="font-size:12px;font-weight:800;color:var(--n);letter-spacing:.3px">🏁 TOTAL RECEBIDO</span>
           <div style="text-align:right">
             <div id="relGrandTotal" style="font-size:20px;font-weight:900;color:var(--n)">0.00€</div>
             <div style="font-size:10px;color:var(--mu);font-weight:600" id="relGrandSub"></div>
@@ -1689,7 +1689,7 @@ function renderFaturas() {
 
   // NC desconta nos totais
   const totVal  = lista.reduce((s,f) => s + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
-  const pagoVal = lista.filter(f => f.pago).reduce((s,f) => s + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+  const pagoVal = lista.reduce((s,f) => s + valorPagoDoc(f), 0);
   const pendVal = totVal - pagoVal;
   const filtLabel = ['Todos','Pagos','Pendentes','Hoje'][FILTRO_FAT] + (search ? ` · "${search}"` : '');
   document.getElementById('subtotaisLabel').textContent = filtLabel + ' (' + lista.length + ')';
@@ -1749,6 +1749,105 @@ function estadoPagamentoFatura(f) {
   if(f.pago) return 'pago';
   if(totalPagoFatura(f) > 0.004) return 'parcial';
   return 'pendente';
+}
+
+
+// Valor já recebido de um documento (inclui pagamentos por conta; NC desconta)
+function valorPagoDoc(f) {
+  const v = parseFloat(f.valor) || 0;
+  if(f.tipo === 'NC') return f.pago ? -v : 0;
+  if(f.pago) return v;
+  return Math.min(Math.max(totalPagoFatura(f), 0), v);
+}
+
+// Valor do documento com sinal (NC negativa)
+function valorDocAssinado(f) {
+  const v = parseFloat(f.valor) || 0;
+  return f.tipo === 'NC' ? -v : v;
+}
+
+// Recebimentos de um documento, agregados por dia.
+// Cada movimento: { data, valor, tag, acumulado }
+//   tag 'conta'    → pagamento por conta (o documento ainda não ficou liquidado nesse dia)
+//   tag 'restante' → pagamento que termina de liquidar um documento com pagamentos por conta anteriores
+//   tag ''         → documento pago de uma só vez
+function movimentosFatura(f) {
+  const v = parseFloat(f.valor) || 0;
+  const dataDoc = (f.data||'').substring(0,10);
+  const dataRec = (f.dataRecebimento||'').substring(0,10);
+
+  if(f.tipo === 'NC') {
+    return (f.pago && dataRec) ? [{ data: dataRec, valor: -v, tag: '', acumulado: -v }] : [];
+  }
+
+  const pags = (f.pagamentos || [])
+    .map((p,i) => ({ data: (p.data||'').substring(0,10) || dataRec || dataDoc, valor: parseFloat(p.valor)||0, ordem: i }))
+    .filter(p => p.valor > 0.004 && p.data);
+  const somaPags = pags.reduce((s,p) => s + p.valor, 0);
+
+  if(f.pago) {
+    const resto = v - somaPags;
+    if(resto > 0.004) {
+      // Marcado como pago: o que faltava foi recebido na data de recebimento
+      const ultima = pags.reduce((m,p) => p.data > m ? p.data : m, '');
+      const dataResto = dataRec || ultima;
+      if(dataResto) pags.push({ data: dataResto, valor: resto, ordem: 9999 });
+    } else if(!pags.length && dataRec) {
+      pags.push({ data: dataRec, valor: 0, ordem: 0 }); // documento de valor 0
+    }
+  }
+
+  pags.sort((a,b) => a.data < b.data ? -1 : a.data > b.data ? 1 : a.ordem - b.ordem);
+
+  // Agregar por dia (dinheiro + cheque no mesmo dia = um só recebimento)
+  const dias = [];
+  const mapa = {};
+  pags.forEach(p => {
+    if(!mapa[p.data]) { mapa[p.data] = { data: p.data, valor: 0 }; dias.push(mapa[p.data]); }
+    mapa[p.data].valor += p.valor;
+  });
+
+  let acum = 0;
+  dias.forEach(d => {
+    const anterior = acum;
+    acum += d.valor;
+    d.acumulado = acum;
+    const liquidou = acum >= v - 0.004;
+    d.tag = liquidou ? (anterior > 0.004 ? 'restante' : '') : 'conta';
+  });
+  return dias;
+}
+
+// Valor que falta receber de um documento até uma determinada data (inclusive)
+function pendenteAte(f, ate) {
+  const rec = movimentosFatura(f).filter(m => m.data <= ate).reduce((s,m) => s + m.valor, 0);
+  const p = valorDocAssinado(f) - rec;
+  if(Math.abs(p) < 0.005) return 0;
+  if(f.tipo !== 'NC' && p < 0) return 0;
+  return p;
+}
+
+// Todos os recebimentos (por conta, restantes e totais) com data entre de e ate
+function movimentosPeriodo(lista, de, ate) {
+  const out = [];
+  lista.forEach(f => movimentosFatura(f).forEach(m => {
+    if(m.data >= de && m.data <= ate) out.push({ f, data: m.data, valor: m.valor, tag: m.tag, acumulado: m.acumulado });
+  }));
+  return out;
+}
+
+// Resumo de um conjunto de movimentos: nº de documentos, recebido, parte por conta e pendente
+function resumoMovimentos(movs, ate) {
+  const docs = new Map();
+  let recebido = 0, porConta = 0;
+  movs.forEach(m => {
+    docs.set(m.f.id, m.f);
+    recebido += m.valor;
+    if(m.tag === 'conta') porConta += m.valor;
+  });
+  let pend = 0;
+  docs.forEach(f => { pend += pendenteAte(f, ate); });
+  return { qtd: docs.size, recebido, porConta, pend };
 }
 
 async function togglePago(id) {
@@ -1834,7 +1933,7 @@ function renderClientes() {
 
     // NC desconta
     const total = fatsParaPendente.reduce((a,f) => a + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
-    const pagas = fatsParaPendente.filter(f => f.pago).reduce((a,f) => a + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+    const pagas = fatsParaPendente.reduce((a,f) => a + valorPagoDoc(f), 0);
     const pend  = total - pagas;
 
     const morada = [c.rua, c.localidade].filter(Boolean).join(', ');
@@ -1900,7 +1999,7 @@ function verCliente(nome, manterSelecao) {
     : fatsCli;
 
   const total = fatsParaTotal.reduce((a,f) => a + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
-  const pagas = fatsParaTotal.filter(f => f.pago).reduce((a,f) => a + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
+  const pagas = fatsParaTotal.reduce((a,f) => a + valorPagoDoc(f), 0);
   const pend  = total - pagas;
 
   const morada = cli ? [cli.rua, cli.localidade].filter(Boolean).join(', ') : '';
@@ -2107,72 +2206,55 @@ function renderRelatorio() {
   }
 
   // Filtrar por comercial
-  let lista = (IS_ADMIN || !COMERCIAL_ATUAL)
+  const base = (IS_ADMIN || !COMERCIAL_ATUAL)
     ? [...FATURAS]
     : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
 
-  // Filtrar apenas faturas pagas com data de recebimento no período selecionado
-  lista = lista.filter(f => {
-    if(!f.pago || !f.dataRecebimento) return false;
-    const dataRec = f.dataRecebimento.substring(0,10);
-    return dataRec >= de && dataRec <= ate;
-  });
+  // Recebimentos com data dentro do período: pagamentos totais, por conta e restantes
+  const movs = movimentosPeriodo(base, de, ate);
+  movs.sort((a,b) => a.data < b.data ? 1 : a.data > b.data ? -1 : 0);
 
+  // ── Separar pela DATA DO DOCUMENTO: documentos de hoje vs documentos de períodos anteriores ──
+  const dataDocMov = m => (m.f.data||'').substring(0,10);
+  const movsHoje = movs.filter(m => dataDocMov(m) === HOJE);
+  const movsAnt  = movs.filter(m => dataDocMov(m) !== HOJE);
 
-
-  // Ordenar mais recente → mais antigo
-  lista.sort((a,b) => {
-    const da = b.dataRecebimento||'';
-    const db2 = a.dataRecebimento||'';
-    return da > db2 ? 1 : da < db2 ? -1 : 0;
-  });
-
-  // ── Separar: recebidos hoje vs períodos anteriores ──
-  // "Hoje" = data de recebimento é hoje; "Anteriores" = data de recebimento anterior a hoje
-  const listaHoje = lista.filter(f => (f.dataRecebimento||'').substring(0,10) === HOJE);
-  const listaAnt  = lista.filter(f => (f.dataRecebimento||'').substring(0,10) !== HOJE);
+  const rT = resumoMovimentos(movs, ate);
+  const rH = resumoMovimentos(movsHoje, ate);
+  const rA = resumoMovimentos(movsAnt, ate);
+  const eur = v => v.toFixed(2)+'€';
+  const nDocs = n => n+' doc'+(n!==1?'s':'');
 
   // Totais gerais
-  // NC desconta nos totais
-  const valPago = lista.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-  const valPend = lista.filter(f=>!f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-  document.getElementById('relFats').textContent = lista.length;
-  document.getElementById('relValPago').textContent = valPago.toFixed(2)+'€';
-  document.getElementById('relValPend').textContent = valPend.toFixed(2)+'€';
+  document.getElementById('relFats').textContent = rT.qtd;
+  document.getElementById('relValPago').textContent = eur(rT.recebido);
+  document.getElementById('relValPend').textContent = eur(rT.pend);
 
   // ── Preencher caixas de resumo ──
   const rEl = document.getElementById('relResumo');
-  if(lista.length) {
+  if(movs.length) {
     rEl.style.display = 'flex';
     rEl.style.flexDirection = 'column';
 
-    const hT = listaHoje.reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-    const hP = listaHoje.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-    const hPend = hT - hP;
-    document.getElementById('relHojeQtd').textContent   = listaHoje.length+' doc'+(listaHoje.length!==1?'s':'');
-    document.getElementById('relHojeTotal').textContent = hT.toFixed(2)+'€';
-    document.getElementById('relHojePago').textContent  = '✔ '+hP.toFixed(2)+'€ pago';
-    document.getElementById('relHojePend').textContent  = '⏳ '+hPend.toFixed(2)+'€ pend.';
+    document.getElementById('relHojeQtd').textContent   = nDocs(rH.qtd);
+    document.getElementById('relHojeTotal').textContent = eur(rH.recebido);
+    document.getElementById('relHojePago').textContent  = '💶 '+eur(rH.porConta)+' por conta';
+    document.getElementById('relHojePend').textContent  = '⏳ '+eur(rH.pend)+' pend.';
 
-    const aT = listaAnt.reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-    const aP = listaAnt.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-    const aPend = aT - aP;
-    document.getElementById('relAntQtd').textContent   = listaAnt.length+' doc'+(listaAnt.length!==1?'s':'');
-    document.getElementById('relAntTotal').textContent = aT.toFixed(2)+'€';
-    document.getElementById('relAntPago').textContent  = '✔ '+aP.toFixed(2)+'€ pago';
-    document.getElementById('relAntPend').textContent  = '⏳ '+aPend.toFixed(2)+'€ pend.';
+    document.getElementById('relAntQtd').textContent   = nDocs(rA.qtd);
+    document.getElementById('relAntTotal').textContent = eur(rA.recebido);
+    document.getElementById('relAntPago').textContent  = '💶 '+eur(rA.porConta)+' por conta';
+    document.getElementById('relAntPend').textContent  = '⏳ '+eur(rA.pend)+' pend.';
 
-    const gT = hT + aT;
-    const gP = hP + aP;
-    const gPend = gT - gP;
-    document.getElementById('relGrandTotal').textContent = gT.toFixed(2)+'€';
-    document.getElementById('relGrandSub').textContent   = gP.toFixed(2)+'€ pago · '+gPend.toFixed(2)+'€ pend.';
+    document.getElementById('relGrandTotal').textContent = eur(rT.recebido);
+    document.getElementById('relGrandSub').textContent   = eur(rH.recebido)+' hoje + '+eur(rA.recebido)+' anteriores'
+      + (rT.porConta > 0.004 ? ' · inclui '+eur(rT.porConta)+' por conta' : '');
   } else {
     rEl.style.display = 'none';
   }
 
   const el = document.getElementById('relLista');
-  if(!lista.length) {
+  if(!movs.length) {
     el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--mu);font-size:13px">Sem documentos no período selecionado</div>';
     return;
   }
@@ -2186,11 +2268,28 @@ function renderRelatorio() {
     return diasSemana[dt.getDay()]+', '+dt.getDate()+' '+mesesNomes[dt.getMonth()]+' '+dt.getFullYear();
   }
 
-  function linhaFatura(f) {
+  function linhaMov(m) {
+    const f = m.f;
     const cor = {FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo]||'nd';
     const dataFmt = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
     const hora = f.criadoEm ? new Date(f.criadoEm).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '';
     const isNC = f.tipo === 'NC';
+    const valorDoc = parseFloat(f.valor)||0;
+    const falta = valorDocAssinado(f) - m.acumulado;
+
+    // Estado: pago de uma vez / por conta / restante (termina de pagar)
+    let badge;
+    if(m.tag === 'conta') {
+      badge = `<span class="relPago p">POR CONTA</span>`;
+    } else if(m.tag === 'restante') {
+      badge = `<span class="relPago s">RESTANTE</span>`;
+    } else {
+      badge = `<span class="relPago s" onclick="event.stopPropagation();togglePago('${f.id}');renderRelatorio()" style="cursor:pointer">PAGO</span>`;
+    }
+    const detalhe = m.tag
+      ? `<div style="font-size:9px;color:var(--mu);font-weight:600">de ${valorDoc.toFixed(2)}€${m.tag==='conta' && falta>0.004 ? ' · falta '+falta.toFixed(2)+'€' : ''}</div>`
+      : '';
+
     return `<div class="relRow" onclick="editarFatura('${f.id}')" style="cursor:pointer">
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.nome)}</div>
@@ -2202,63 +2301,62 @@ function renderRelatorio() {
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <span style="font-weight:800;font-size:14px;color:${isNC?'var(--gr)':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</span>
-        <span class="relPago ${f.pago?'s':'n'}" onclick="event.stopPropagation();togglePago('${f.id}');renderRelatorio()" style="cursor:pointer">${f.pago?'PAGO':'PEND.'}</span>
+        <div style="text-align:right">
+          <div style="font-weight:800;font-size:14px;color:${isNC?'var(--gr)':m.tag==='conta'?'var(--s)':'inherit'}">${m.valor<0?'-':''}${Math.abs(m.valor).toFixed(2)}€</div>
+          ${detalhe}
+        </div>
+        ${badge}
       </div>
     </div>`;
   }
 
-  function blocoGrupo(grpLista, titulo, isHoje) {
-    if(!grpLista.length) return '';
-    // Agrupar por dia dentro do grupo
+  function blocoGrupo(grpMovs, titulo, isHoje) {
+    if(!grpMovs.length) return '';
+    const r = resumoMovimentos(grpMovs, ate);
+
+    // Agrupar por dia de recebimento dentro do grupo
     const diasMap = {};
     const diasOrdem = [];
-    grpLista.forEach(f => {
-      const dia = (f.dataRecebimento||'').substring(0,10);
-      if(!diasMap[dia]) { diasMap[dia]=[]; diasOrdem.push(dia); }
-      diasMap[dia].push(f);
+    grpMovs.forEach(m => {
+      if(!diasMap[m.data]) { diasMap[m.data]=[]; diasOrdem.push(m.data); }
+      diasMap[m.data].push(m);
     });
     diasOrdem.sort((a,b) => b>a?1:b<a?-1:0);
 
-    const gTotal = grpLista.reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-    const gPago  = grpLista.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-    const gPend  = gTotal-gPago;
     const bg = isHoje ? 'linear-gradient(135deg,#27ae60,#2ecc71)' : 'linear-gradient(135deg,#1a2745,#223366)';
     const subC = isHoje ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.5)';
 
     let h = `<div style="display:flex;align-items:center;justify-content:space-between;background:${bg};border-radius:12px;padding:11px 14px;margin:16px 0 6px">
       <div>
         <div style="color:#fff;font-size:13px;font-weight:900;letter-spacing:.4px">${titulo}</div>
-        <div style="color:${subC};font-size:10px;margin-top:1px">${grpLista.length} documento${grpLista.length!==1?'s':''}</div>
+        <div style="color:${subC};font-size:10px;margin-top:1px">${nDocs(r.qtd)}</div>
       </div>
       <div style="text-align:right">
-        <div style="color:#fff;font-size:16px;font-weight:900">${gTotal.toFixed(2)}€</div>
-        <div style="color:${subC};font-size:10px">${gPago.toFixed(2)}€ pago · ${gPend.toFixed(2)}€ pend.</div>
+        <div style="color:#fff;font-size:16px;font-weight:900">${eur(r.recebido)}</div>
+        <div style="color:${subC};font-size:10px">${r.porConta>0.004 ? eur(r.porConta)+' por conta · ' : ''}${eur(r.pend)} pend.</div>
       </div>
     </div>`;
 
     diasOrdem.forEach(dia => {
       const grp = diasMap[dia];
-      const dTotal = grp.reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-      const dPago  = grp.filter(f=>f.pago).reduce((s,f)=>s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)),0);
-      const dPend  = dTotal-dPago;
+      const d = resumoMovimentos(grp, ate);
       const dLabel = fmtDia(dia);
 
       if(!isHoje) {
         // sub-cabeçalho por dia dentro de "Anteriores"
         h += `<div style="display:flex;align-items:center;justify-content:space-between;background:#eef0f7;border-radius:8px;padding:7px 12px;margin:8px 0 2px;border-left:3px solid var(--s)">
           <span style="font-size:12px;font-weight:800;color:var(--n)">${dLabel}</span>
-          <span style="font-size:11px;font-weight:700;color:var(--s)">${grp.length} doc · ${dTotal.toFixed(2)}€</span>
+          <span style="font-size:11px;font-weight:700;color:var(--s)">${nDocs(d.qtd)} · ${eur(d.recebido)}</span>
         </div>`;
       }
 
-      grp.forEach(f => { h += linhaFatura(f); });
+      grp.forEach(m => { h += linhaMov(m); });
 
       h += `<div style="display:flex;gap:8px;background:#f4f1ec;border-radius:8px;padding:6px 12px;margin:2px 0 4px;border-left:3px solid ${isHoje?'var(--gr)':'var(--s)'}">
-        <span style="font-size:10px;color:var(--mu);flex:1;font-weight:700;align-self:center">SUBTOTAL${!isHoje?' · '+dLabel:''}</span>
-        <span style="font-size:12px;font-weight:800;color:var(--n)">${dTotal.toFixed(2)}€</span>
-        <span style="font-size:11px;font-weight:700;color:var(--gr);background:rgba(39,174,96,.1);padding:2px 7px;border-radius:6px">${dPago.toFixed(2)}€ pago</span>
-        <span style="font-size:11px;font-weight:700;color:var(--r);background:rgba(231,76,60,.08);padding:2px 7px;border-radius:6px">${dPend.toFixed(2)}€ pend.</span>
+        <span style="font-size:10px;color:var(--mu);flex:1;font-weight:700;align-self:center">SUBTOTAL RECEBIDO${!isHoje?' · '+dLabel:''}</span>
+        <span style="font-size:12px;font-weight:800;color:var(--n)">${eur(d.recebido)}</span>
+        ${d.porConta>0.004 ? `<span style="font-size:11px;font-weight:700;color:var(--s);background:rgba(26,74,138,.1);padding:2px 7px;border-radius:6px">${eur(d.porConta)} por conta</span>` : ''}
+        ${d.pend>0.004 ? `<span style="font-size:11px;font-weight:700;color:var(--r);background:rgba(231,76,60,.08);padding:2px 7px;border-radius:6px">${eur(d.pend)} pend.</span>` : ''}
       </div>`;
     });
 
@@ -2266,8 +2364,8 @@ function renderRelatorio() {
   }
 
   let html = '';
-  html += blocoGrupo(listaHoje, '📅 RECEBIDOS HOJE', true);
-  html += blocoGrupo(listaAnt,  '🗂 PERÍODOS ANTERIORES', false);
+  html += blocoGrupo(movsHoje, '📅 RECEBIDOS HOJE', true);
+  html += blocoGrupo(movsAnt,  '🗂 PERÍODOS ANTERIORES', false);
 
   el.innerHTML = html || '<div style="text-align:center;padding:24px;color:var(--mu);font-size:13px">Sem documentos</div>';
 }
@@ -2285,7 +2383,7 @@ function imprimirFaturas() {
   lista.sort((a,b) => (a.data||'') < (b.data||'') ? -1 : 1);
 
   const totVal  = lista.reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
-  const pagoVal = lista.filter(f=>f.pago).reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
+  const pagoVal = lista.reduce((s,f) => s + valorPagoDoc(f), 0);
   const pendVal = totVal - pagoVal;
   const hoje = new Date().toLocaleDateString('pt-PT');
 
@@ -2299,7 +2397,11 @@ function imprimirFaturas() {
       <td style="${isNC?'color:#c0392b;font-weight:700':''}">${esc(f.num)}</td>
       <td style="text-align:center">${dataFmt}</td>
       <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
-      <td style="text-align:center"><span style="background:${f.pago?'#d4edda':'#f8d7da'};color:${f.pago?'#155724':'#721c24'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${f.pago?'PAGO':'PEND.'}</span></td>
+      <td style="text-align:center">${f.pago
+        ? '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">PAGO</span>'
+        : estadoPagamentoFatura(f)==='parcial'
+          ? `<span style="background:#dbe6fb;color:#1a4a8a;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">POR CONTA</span><small>pago ${totalPagoFatura(f).toFixed(2)} €</small>`
+          : '<span style="background:#f8d7da;color:#721c24;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">PEND.</span>'}</td>
     </tr>`;
   }).join('');
 
@@ -2321,62 +2423,80 @@ function imprimirRelatorio() {
   const ate = document.getElementById('relAte')?.value;
   if(!de||!ate) return;
 
-  let lista = IS_ADMIN ? [...FATURAS] : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
-  // Filtrar apenas faturas pagas com data de recebimento no período
-  lista = lista.filter(f => {
-    if(!f.pago || !f.dataRecebimento) return false;
-    const dataRec = f.dataRecebimento.substring(0,10);
-    return dataRec >= de && dataRec <= ate;
-  });
-  // Ordenar: mais recente → mais antiga
-  lista.sort((a,b) => {
-    const da = b.dataRecebimento||'';
-    const db2 = a.dataRecebimento||'';
-    return da > db2 ? 1 : da < db2 ? -1 : 0;
-  });
+  const base = IS_ADMIN ? [...FATURAS] : FATURAS.filter(f => f.comercial === COMERCIAL_ATUAL);
 
-  const totVal  = lista.reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
-  const pagoVal = lista.filter(f=>f.pago).reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
-  const pendVal = totVal - pagoVal;
+  // Recebimentos no período (totais, por conta e restantes), do mais recente para o mais antigo
+  const movs = movimentosPeriodo(base, de, ate);
+  movs.sort((a,b) => a.data < b.data ? 1 : a.data > b.data ? -1 : 0);
+
+  const dataDocMov = m => (m.f.data||'').substring(0,10);
+  const movsHoje = movs.filter(m => dataDocMov(m) === HOJE);
+  const movsAnt  = movs.filter(m => dataDocMov(m) !== HOJE);
+  const rT = resumoMovimentos(movs, ate);
+  const rH = resumoMovimentos(movsHoje, ate);
+  const rA = resumoMovimentos(movsAnt, ate);
+
   const hoje = new Date().toLocaleDateString('pt-PT');
   const deFmt = de.split('-').reverse().join('/');
   const ateFmt = ate.split('-').reverse().join('/');
+  const eur = v => v.toFixed(2)+' €';
+  const fmtD = d => d ? d.substring(0,10).split('-').reverse().join('/') : '—';
 
-  let corpoTabela = '';
+  function estadoHtml(m) {
+    if(m.tag === 'conta')    return '<span style="background:#dbe6fb;color:#1a4a8a;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">POR CONTA</span>';
+    if(m.tag === 'restante') return '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">RESTANTE</span>';
+    return '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">PAGO</span>';
+  }
+
+  function linhaRel(m, num, bg, comColab, nomeColab) {
+    const f = m.f;
+    const isNC = f.tipo === 'NC';
+    const valorDoc = parseFloat(f.valor)||0;
+    const falta = valorDocAssinado(f) - m.acumulado;
+    const detalhe = m.tag
+      ? `<small>de ${valorDoc.toFixed(2)} €${m.tag==='conta' && falta>0.004 ? ' · falta '+falta.toFixed(2)+' €' : ''}</small>`
+      : '';
+    return `<tr style="background:${bg}">
+      <td>${num}</td>
+      <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
+      <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
+      <td style="${isNC?'color:#c0392b;font-weight:700':''}">${esc(f.num)}</td>
+      <td style="text-align:center">${fmtD(f.data)}</td>
+      <td style="text-align:center;font-size:11px">${fmtD(m.data)}</td>
+      ${comColab ? `<td style="font-size:11px;color:#1a1a1a;font-weight:600">${esc(nomeColab)}</td>` : ''}
+      <td style="text-align:right;color:#666">${isNC?'-':''}${valorDoc.toFixed(2)} €</td>
+      <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${m.valor<0?'-':''}${Math.abs(m.valor).toFixed(2)} €${detalhe}</td>
+      <td style="text-align:center">${estadoHtml(m)}</td>
+    </tr>`;
+  }
+
+  const totaisHtml = `
+    <div class="totais">
+      <div class="tot-item tot-total"><div class="tot-val">${eur(rH.recebido)}</div><div class="tot-lbl">Recebido hoje</div></div>
+      <div class="tot-item tot-total"><div class="tot-val">${eur(rA.recebido)}</div><div class="tot-lbl">Períodos anteriores</div></div>
+      <div class="tot-item tot-pago"><div class="tot-val">${eur(rT.recebido)}</div><div class="tot-lbl">Total recebido${rT.porConta>0.004 ? '<br>inclui '+eur(rT.porConta)+' por conta' : ''}</div></div>
+      <div class="tot-item tot-pend"><div class="tot-val">${eur(rT.pend)}</div><div class="tot-lbl">Pendente</div></div>
+    </div>`;
+
+  const cabecalho = (titulo, extra) => `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <h2 style="margin:0 0 4px;color:#0a1628">${titulo}</h2>
+        <div style="color:#666;font-size:12px">Período: ${deFmt} a ${ateFmt} · Impresso em ${hoje} · ${rT.qtd} documentos${extra||''}</div>
+      </div>
+      ${de===ate ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:24px;font-weight:800;color:#0a1628">${deFmt}</div></div>` : ''}
+    </div>`;
 
   if(!IS_ADMIN) {
     // Comercial: tabela simples
-    lista.forEach((f,i) => {
-      const dataFat = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
-      const dataRec = f.dataRecebimento ? f.dataRecebimento.substring(0,10).split('-').reverse().join('/') : '—';
-      const isNC = f.tipo === 'NC';
-      corpoTabela += `<tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
-        <td>${i+1}</td>
-        <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
-        <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
-        <td style="${isNC?'color:#c0392b;font-weight:700':''}">${esc(f.num)}</td>
-        <td style="text-align:center">${dataFat}</td>
-        <td style="text-align:center;font-size:11px">${dataRec}</td>
-        <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
-        <td style="text-align:center"><span style="background:${f.pago?'#d4edda':'#f8d7da'};color:${f.pago?'#155724':'#721c24'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${f.pago?'PAGO':'PEND.'}</span></td>
-      </tr>`;
-    });
+    let corpoTabela = '';
+    movs.forEach((m,i) => { corpoTabela += linhaRel(m, i+1, i%2===0?'#fff':'#f9f9f9', false); });
 
     abrirJanelaImpressao(`
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
-        <div>
-          <h2 style="margin:0 0 4px;color:#0a1628">RELATÓRIO DE DOCUMENTOS</h2>
-          <div style="color:#666;font-size:12px">Período: ${deFmt} a ${ateFmt} · Impresso em ${hoje} · ${lista.length} documentos</div>
-        </div>
-        ${de===ate ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:24px;font-weight:800;color:#0a1628">${deFmt}</div></div>` : ''}
-      </div>
-      <table><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Data Fat.</th><th>Rececionado</th><th style="text-align:right">Valor</th><th>Estado</th></tr></thead>
+      ${cabecalho('RELATÓRIO DE DOCUMENTOS')}
+      <table><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Data Fat.</th><th>Rececionado</th><th style="text-align:right">Valor Doc.</th><th style="text-align:right">Recebido</th><th>Estado</th></tr></thead>
       <tbody>${corpoTabela}</tbody></table>
-      <div class="totais">
-        <div class="tot-item tot-total"><div class="tot-val">${totVal.toFixed(2)} €</div><div class="tot-lbl">Total</div></div>
-        <div class="tot-item tot-pago"><div class="tot-val">${pagoVal.toFixed(2)} €</div><div class="tot-lbl">Pago</div></div>
-        <div class="tot-item tot-pend"><div class="tot-val">${pendVal.toFixed(2)} €</div><div class="tot-lbl">Pendente</div></div>
-      </div>
+      ${totaisHtml}
     `);
     return;
   }
@@ -2384,75 +2504,50 @@ function imprimirRelatorio() {
   // ── ADMIN: agrupar por colaborador ──
   const grupos = {};
   const ordemGrupos = [];
-  lista.forEach(f => {
-    const key = f.comercial || '__sem__';
+  movs.forEach(m => {
+    const key = m.f.comercial || '__sem__';
     if(!grupos[key]) { grupos[key] = []; ordemGrupos.push(key); }
-    grupos[key].push(f);
+    grupos[key].push(m);
   });
 
+  let corpoTabela = '';
   let numGlobal = 0;
+  const cols = 10; // número de colunas
   ordemGrupos.forEach(key => {
     const grp = grupos[key];
     const nomeColab = key === '__sem__' ? '— Sem colaborador —' : (NOMES_CONFIG[key] || key);
-    const grpTotal = grp.reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
-    const grpPago  = grp.filter(f=>f.pago).reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
-    const grpPend  = grpTotal - grpPago;
-    const cols = 9; // número de colunas
+    const r = resumoMovimentos(grp, ate);
 
     // Cabeçalho do colaborador
     corpoTabela += `<tr>
       <td colspan="${cols}" style="background:#0a1628;color:#c9a84c;font-weight:800;font-size:12px;padding:8px 10px;letter-spacing:.5px">
-        👤 ${esc(nomeColab).toUpperCase()} &nbsp;·&nbsp; ${grp.length} documento${grp.length!==1?'s':''}
+        👤 ${esc(nomeColab).toUpperCase()} &nbsp;·&nbsp; ${r.qtd} documento${r.qtd!==1?'s':''}
       </td>
     </tr>`;
 
-    grp.forEach((f,i) => {
+    grp.forEach((m,i) => {
       numGlobal++;
-      const dataFat = f.data ? f.data.substring(0,10).split('-').reverse().join('/') : '—';
-      const dataRec = f.dataRecebimento ? f.dataRecebimento.substring(0,10).split('-').reverse().join('/') : '—';
-      const isNC = f.tipo === 'NC';
-      corpoTabela += `<tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
-        <td>${numGlobal}</td>
-        <td><b>${esc(f.nome)}</b>${f.nif?`<br><small>NIF: ${f.nif}</small>`:''}</td>
-        <td style="text-align:center"><span style="background:${f.tipo==='FT'?'#1a4a8a':isNC?'#27ae60':'#8a5cf6'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px">${f.tipo}</span></td>
-        <td style="${isNC?'color:#c0392b;font-weight:700':''}">${esc(f.num)}</td>
-        <td style="text-align:center">${dataFat}</td>
-        <td style="text-align:center;font-size:11px">${dataRec}</td>
-        <td style="font-size:11px;color:#1a1a1a;font-weight:600">${esc(nomeColab)}</td>
-        <td style="text-align:right;font-weight:700;color:${isNC?'#155724':'inherit'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)} €</td>
-        <td style="text-align:center"><span style="background:${f.pago?'#d4edda':'#f8d7da'};color:${f.pago?'#155724':'#721c24'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${f.pago?'PAGO':'PEND.'}</span></td>
-      </tr>`;
+      corpoTabela += linhaRel(m, numGlobal, i%2===0?'#fff':'#f9f9f9', true, nomeColab);
     });
 
     // Linha subtotal do colaborador
     corpoTabela += `<tr style="background:#fff8e6;border-top:2px solid #c9a84c">
-      <td colspan="6" style="font-weight:800;font-size:11px;color:#0a1628;padding:6px 10px;text-align:right">
-        SUBTOTAL ${esc(nomeColab).toUpperCase()}
+      <td colspan="8" style="font-weight:800;font-size:11px;color:#0a1628;padding:6px 10px;text-align:right">
+        SUBTOTAL RECEBIDO ${esc(nomeColab).toUpperCase()}
       </td>
-      <td></td>
-      <td style="text-align:right;font-weight:800;font-size:13px;color:#0a1628">${grpTotal.toFixed(2)} €</td>
+      <td style="text-align:right;font-weight:800;font-size:13px;color:#0a1628">${eur(r.recebido)}</td>
       <td style="text-align:center;font-size:10px">
-        <span style="color:#155724;font-weight:700">${grpPago.toFixed(2)}€ pago</span><br>
-        <span style="color:#721c24;font-weight:700">${grpPend.toFixed(2)}€ pend.</span>
+        ${r.porConta>0.004 ? `<span style="color:#1a4a8a;font-weight:700">${eur(r.porConta)} por conta</span><br>` : ''}
+        <span style="color:#721c24;font-weight:700">${eur(r.pend)} pend.</span>
       </td>
     </tr><tr><td colspan="${cols}" style="height:8px;background:#f4f4f4"></td></tr>`;
   });
 
   abrirJanelaImpressao(`
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
-      <div>
-        <h2 style="margin:0 0 4px;color:#0a1628">RELATÓRIO DE DOCUMENTOS — ADMIN</h2>
-        <div style="color:#666;font-size:12px">Período: ${deFmt} a ${ateFmt} · Impresso em ${hoje} · ${lista.length} documentos · ${ordemGrupos.length} colaborador(es)</div>
-      </div>
-      ${de===ate ? `<div style="text-align:right;flex-shrink:0"><div style="font-size:24px;font-weight:800;color:#0a1628">${deFmt}</div></div>` : ''}
-    </div>
-    <table><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Data Fat.</th><th>Rececionado</th><th>Colaborador</th><th style="text-align:right">Valor</th><th>Estado</th></tr></thead>
+    ${cabecalho('RELATÓRIO DE DOCUMENTOS — ADMIN', ` · ${ordemGrupos.length} colaborador(es)`)}
+    <table><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Data Fat.</th><th>Rececionado</th><th>Colaborador</th><th style="text-align:right">Valor Doc.</th><th style="text-align:right">Recebido</th><th>Estado</th></tr></thead>
     <tbody>${corpoTabela}</tbody></table>
-    <div class="totais">
-      <div class="tot-item tot-total"><div class="tot-val">${totVal.toFixed(2)} €</div><div class="tot-lbl">Total Geral</div></div>
-      <div class="tot-item tot-pago"><div class="tot-val">${pagoVal.toFixed(2)} €</div><div class="tot-lbl">Total Pago</div></div>
-      <div class="tot-item tot-pend"><div class="tot-val">${pendVal.toFixed(2)} €</div><div class="tot-lbl">Total Pendente</div></div>
-    </div>
+    ${totaisHtml}
   `);
 }
 
@@ -2750,7 +2845,21 @@ async function guardarFaturaEdit() {
   FATURAS[idx].num   = document.getElementById('eFatNum').value.trim();
   FATURAS[idx].data  = document.getElementById('eFatData').value;
   FATURAS[idx].valor = parseFloat(document.getElementById('eFatValor').value)||0;
-  FATURAS[idx].pago  = document.getElementById('eFatPago').classList.contains('on');
+  const eraPago = !!FATURAS[idx].pago;
+  let pago = document.getElementById('eFatPago').classList.contains('on');
+  // Pagamentos por conta que já cobrem o valor total → o documento fica pago
+  const pagsOk = (_pagamentosEdit || []).filter(p => (parseFloat(p.valor)||0) > 0.004);
+  const somaPags = pagsOk.reduce((t,p) => t + (parseFloat(p.valor)||0), 0);
+  const cobre = FATURAS[idx].tipo !== 'NC' && FATURAS[idx].valor > 0 && somaPags >= FATURAS[idx].valor - 0.004;
+  if(!pago && !eraPago && cobre) pago = true;
+  FATURAS[idx].pago = pago;
+  // Data de recebimento: data do último pagamento (se cobre tudo) ou hoje (se foi marcado pago agora)
+  if(pago && !eraPago) {
+    const ultima = pagsOk.map(p => (p.data||'').substring(0,10)).filter(Boolean).sort().pop();
+    FATURAS[idx].dataRecebimento = (cobre && ultima) ? ultima : HOJE;
+  } else if(!pago) {
+    FATURAS[idx].dataRecebimento = null;
+  }
   if(IS_ADMIN) {
     FATURAS[idx].comercial = document.getElementById('eFatColab').value || null;
   }
