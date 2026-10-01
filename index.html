@@ -68,7 +68,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 /* Scanner */
 .scan-box{background:linear-gradient(160deg,var(--n),var(--s));border-radius:18px;padding:20px;margin-bottom:14px;position:relative}
 .cWrap{display:none;border-radius:14px;overflow:hidden;margin-bottom:12px;position:relative}.cWrap.a{display:block}
-#qrVid{width:100%;display:block;max-height:280px;object-fit:cover}
+#qrVid{width:100%;display:block;max-height:190px;object-fit:cover}
 
 /* Scan frame overlay */
 .scan-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;pointer-events:none;z-index:10}
@@ -86,15 +86,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 .qrStatus.err{color:#ff8080}
 
 /* Faturas lista */
-.fatRow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+.fatRow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(0,0,0,.06)}
 .fatRow:last-child{border-bottom:none}
-.fatBadge{flex-shrink:0;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff}
+.fatBadge{flex-shrink:0;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff}
 .fatBadge.ft{background:var(--s)}.fatBadge.fs{background:#8a5cf6}
 .fatBadge.vd{background:#16a34a}.fatBadge.nd{background:var(--mu)}
 .fatInfo{flex:1;min-width:0}
 .fatNome{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fatSub{font-size:11px;color:var(--mu);margin-top:1px}
-.fatVal{font-size:15px;font-weight:800;flex-shrink:0}
+.fatSub{font-size:11px;color:var(--mu);margin-top:0;line-height:1.25}
+.fatVal{font-size:14px;font-weight:800;flex-shrink:0;line-height:1.1}
 .fatPago{width:28px;height:28px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:.15s}
 .fatPago.sim{background:var(--gr);border-color:var(--gr);color:#fff}
 .fatPago.nao{background:#fff;border-color:#ddd;color:#ddd}
@@ -136,9 +136,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 #toast.v{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* Botão IR navegação GPS */
-.btnIr{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:linear-gradient(135deg,#1a4a8a,#2563eb);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;white-space:nowrap}
+.btnIr{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;background:linear-gradient(135deg,#1a4a8a,#2563eb);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0;white-space:nowrap}
 .btnIr svg{width:13px;height:13px;flex-shrink:0}
-.moradaCli{font-size:10px;color:var(--mu);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.moradaCli{font-size:10px;color:var(--mu);margin-top:0;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+
+/* ── Scanner: caixa azul fixa (scroll só dos dados para baixo) ── */
+.scanSticky{position:sticky;top:60px;z-index:60;background:var(--bg);margin:0 -14px;padding:8px 14px 2px}
+.scanSticky .scan-box{margin-bottom:8px;padding:12px 14px}
+.scanSticky .scan-box .ct{margin-bottom:6px!important}
+
+/* ── Faturas: topo fixo + totais fixos em baixo ── */
+.fatTop{position:sticky;top:60px;z-index:60;background:var(--bg);margin:0 -14px 6px;padding:8px 14px 6px;box-shadow:0 5px 6px -5px rgba(10,22,40,.18)}
+.fatTop .stat{margin-bottom:8px;gap:8px}
+.fatTop .sItem{padding:7px 6px}
+.fatTop .sVal{font-size:18px;line-height:1.1}
+.fatBar{position:fixed;left:0;right:0;bottom:68px;z-index:90;padding:14px 14px 8px;background:linear-gradient(to top,var(--bg) 75%,rgba(244,241,236,0))}
+.fatBar .card{margin:0;padding:9px 14px;box-shadow:0 4px 16px rgba(10,22,40,.25)}
+#ecra1{padding-bottom:178px}
+
+/* ── Editar documento: espaços compactos ── */
+#mEditFat .mBox{padding:12px 14px 14px}
+#mEditFat .mTit{margin-bottom:8px;font-size:16px}
+#mEditFat .lbl{margin-bottom:2px;font-size:10px}
+#mEditFat .inp,#mEditFat .sel{padding:8px 10px;margin-bottom:6px;font-size:14px;border-radius:10px}
+#mEditFat .row2{gap:6px}
+#mEditFat .ct{margin-bottom:0;font-size:10px}
+#mEditFat .pagLinha{padding:5px 9px;margin-bottom:4px}
+#mEditFat .notaItem{padding:7px 10px;margin-bottom:5px}
+#mEditFat .notaItem [style*="margin-top:10px"]{margin-top:5px!important}
+#mEditFat textarea{min-height:44px!important;margin-bottom:6px!important}
+#mEditFat .bD,#mEditFat .bP{padding:11px}
 
 @media print{
   .cab,.nav,.card.no-print,.bP,.bS,.bD{display:none!important}
@@ -252,6 +280,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
         </button>
       </div>
 
+      <div class="scanSticky">
       <div class="scan-box">
         <div class="ct" style="color:rgba(255,255,255,.6);margin-bottom:10px">QR · Documento</div>
         <div class="cWrap" id="cWrap">
@@ -285,6 +314,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           </div>
         </div>
       </div>
+
+      </div><!-- fim scanSticky -->
 
       <!-- Formulário preenchido pelo QR ou manual -->
       <div class="card">
@@ -360,31 +391,32 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
   <div class="ecra" id="ecra1">
     <div class="s">
 
-      <div class="stat">
-        <div class="sItem"><div class="sVal" id="stTotal">0</div><div class="sLbl">Total</div></div>
-        <div class="sItem"><div class="sVal" id="stPago" style="color:var(--gr)">0</div><div class="sLbl">Pagas</div></div>
-        <div class="sItem"><div class="sVal" id="stPend" style="color:var(--r)">0</div><div class="sLbl">Pendentes</div></div>
-      </div>
-
-      <!-- Filtros rápidos -->
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="filtBtn" id="fb0" onclick="setFiltro(0)">Todas</button>
-        <button class="filtBtn" id="fb1" onclick="setFiltro(1)">✓ Pagas</button>
-        <button class="filtBtn" id="fb2" onclick="setFiltro(2)">⏳ Pendentes</button>
-        <button class="filtBtn a" id="fb3" onclick="setFiltro(3)">Hoje</button>
-      </div>
-
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="fatTop">
+        <div class="stat">
+          <div class="sItem"><div class="sVal" id="stTotal">0</div><div class="sLbl">Total</div></div>
+          <div class="sItem"><div class="sVal" id="stPago" style="color:var(--gr)">0</div><div class="sLbl">Pagas</div></div>
+          <div class="sItem"><div class="sVal" id="stPend" style="color:var(--r)">0</div><div class="sLbl">Pendentes</div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <button class="filtBtn" id="fb0" onclick="setFiltro(0)">Todas</button>
+          <button class="filtBtn" id="fb1" onclick="setFiltro(1)">✓ Pagas</button>
+          <button class="filtBtn" id="fb2" onclick="setFiltro(2)">⏳ Pendentes</button>
+          <button class="filtBtn a" id="fb3" onclick="setFiltro(3)">Hoje</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
           <div class="ct" style="margin-bottom:0">Documentos</div>
           <input id="searchFat" placeholder="🔍 pesquisar..." oninput="renderFaturas()" style="padding:6px 10px;border:1.5px solid #eee;border-radius:10px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;width:48%">
         </div>
+      </div>
+
+      <div class="card" style="padding:2px 14px">
         <div id="listaFat"></div>
       </div>
 
       <!-- Barra subtotais -->
-      <div class="card" style="background:linear-gradient(135deg,var(--n),var(--s));color:#fff;padding:12px 16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="fatBar">
+      <div class="card" style="background:linear-gradient(135deg,var(--n),var(--s));color:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
           <span id="subtotaisLabel" style="font-size:11px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.5px;text-transform:uppercase">Todos</span>
           <button onclick="imprimirFaturas()" style="padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">🖨</button>
         </div>
@@ -403,6 +435,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           </div>
         </div>
       </div>
+      </div><!-- fim fatBar -->
 
     </div>
   </div>
@@ -522,9 +555,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
     <input type="hidden" id="eFatId">
     <label class="lbl">Cliente</label>
     <input class="inp" id="eFatNome">
-    <label class="lbl">NIF</label>
-    <input class="inp" id="eFatNif" inputmode="numeric" maxlength="9">
     <div class="row2">
+      <div>
+        <label class="lbl">NIF</label>
+        <input class="inp" id="eFatNif" inputmode="numeric" maxlength="9">
+      </div>
       <div>
         <label class="lbl">Tipo</label>
         <select class="sel" id="eFatTipo">
@@ -533,29 +568,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           <option value="ND">ND</option><option value="NC">NC</option>
         </select>
       </div>
+    </div>
+    <div class="row2">
       <div>
         <label class="lbl">Nº Doc.</label>
-        <input class="inp" id="eFatNum" style="margin-bottom:0">
+        <input class="inp" id="eFatNum">
       </div>
-    </div>
-    <div class="row2" style="margin-top:8px">
       <div>
         <label class="lbl">Data</label>
-        <input class="inp" type="date" id="eFatData" style="margin-bottom:0">
+        <input class="inp" type="date" id="eFatData">
       </div>
+    </div>
+    <div class="row2" style="align-items:end">
       <div>
         <label class="lbl">Valor €</label>
-        <input class="inp" type="number" step="0.01" id="eFatValor" style="margin-bottom:0" oninput="renderPagamentosEdit()">
+        <input class="inp" type="number" step="0.01" id="eFatValor" oninput="renderPagamentosEdit()">
+      </div>
+      <div class="check-row" style="height:36px;margin-bottom:6px;padding:0">
+        <div class="checkBox" id="eFatPago" onclick="this.classList.toggle('on')"></div>
+        <span style="font-size:13px;font-weight:700">Pago / Liquidado</span>
       </div>
     </div>
-    <div class="check-row" style="margin-top:8px">
-      <div class="checkBox" id="eFatPago" onclick="this.classList.toggle('on')"></div>
-      <span style="font-size:14px;font-weight:700">Pago / Liquidado</span>
-    </div>
     <!-- Colaborador - só admin pode alterar -->
-    <div id="eFatColabWrap" style="display:none;margin-top:10px">
+    <div id="eFatColabWrap" style="display:none;margin-top:2px">
       <label class="lbl">Colaborador</label>
-      <select class="sel" id="eFatColab" style="margin-bottom:0">
+      <select class="sel" id="eFatColab">
         <option value="">-- Sem atribuição --</option>
         <option value="admin">🔑 Administrador</option>
         <option value="comercial1">👤 Comercial 1</option>
@@ -564,14 +601,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
       </select>
     </div>
     <!-- ── NOTAS / FALTAS ── -->
-    <div style="margin-top:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="margin-top:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <div class="ct" style="margin-bottom:0">⚠️ Notas / Faltas na Fatura</div>
-        <button onclick="adicionarNota()" style="background:linear-gradient(135deg,var(--g),var(--gl));border:none;color:var(--n);font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif">+ Adicionar</button>
+        <button onclick="adicionarNota()" style="background:linear-gradient(135deg,var(--g),var(--gl));border:none;color:var(--n);font-size:11px;font-weight:800;padding:4px 10px;border-radius:9px;cursor:pointer;font-family:'DM Sans',sans-serif">+ Adicionar</button>
       </div>
       <div id="eFatNotas"></div>
       <!-- Caixa para nova nota -->
-      <div id="addNotaBox" style="display:none;background:#eef2f7;border-radius:12px;padding:12px;margin-bottom:10px">
+      <div id="addNotaBox" style="display:none;background:#eef2f7;border-radius:12px;padding:8px 10px;margin-bottom:6px">
         <label class="lbl">Descrição da nota / falta</label>
         <textarea id="novaNotaTexto" placeholder="Descreve a nota ou falta encontrada..." style="width:100%;padding:10px;background:#fff;border:1.5px solid rgba(26,74,138,.14);border-radius:10px;font-size:13px;color:var(--n);outline:none;font-family:'DM Sans',sans-serif;resize:vertical;min-height:70px;margin-bottom:8px"></textarea>
         <div style="display:flex;gap:8px">
@@ -582,14 +619,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
     </div>
 
     <!-- ── PAGAMENTOS POR CONTA / PARCELAS ── -->
-    <div style="margin-top:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="margin-top:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <div class="ct" style="margin-bottom:0">💶 Pagamentos por Conta</div>
-        <button onclick="adicionarPagamento()" style="background:linear-gradient(135deg,var(--g),var(--gl));border:none;color:var(--n);font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;cursor:pointer;font-family:'DM Sans',sans-serif">+ Adicionar</button>
+        <button onclick="adicionarPagamento()" style="background:linear-gradient(135deg,var(--g),var(--gl));border:none;color:var(--n);font-size:11px;font-weight:800;padding:4px 10px;border-radius:9px;cursor:pointer;font-family:'DM Sans',sans-serif">+ Adicionar</button>
       </div>
       <div id="eFatPagamentos"></div>
       <!-- Caixa para novo pagamento -->
-      <div id="addPagBox" style="display:none;background:#eef2f7;border-radius:12px;padding:12px;margin-bottom:10px">
+      <div id="addPagBox" style="display:none;background:#eef2f7;border-radius:12px;padding:8px 10px;margin-bottom:6px">
         <div class="row2">
           <div>
             <label class="lbl">Data</label>
@@ -627,7 +664,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;margin-top:14px">
+    <div style="display:flex;gap:8px;margin-top:8px">
       <button class="bD" onclick="eliminarFaturaEdit()" style="flex:1;margin-bottom:0">🗑 Eliminar</button>
       <button class="bP" onclick="guardarFaturaEdit()" style="flex:2">💾 Guardar</button>
     </div>
@@ -1665,13 +1702,22 @@ function setFiltro(f) {
   renderFaturas();
 }
 
+// Movimentos (recebimentos) de um documento com data de hoje
+function recebimentosHoje(f) {
+  return movimentosFatura(f).filter(m => m.data === HOJE);
+}
+// Entra em "Hoje" se foi criado hoje OU se recebeu algum valor hoje (por conta, restante ou total)
+function docEntraHoje(f) {
+  return (f.criadoEm||f.data||'').substring(0,10) === HOJE || recebimentosHoje(f).length > 0;
+}
+
 function renderFaturas() {
   const search = (document.getElementById('searchFat')?.value || '').toLowerCase();
   let lista = getFaturasFiltradas();
 
   if(FILTRO_FAT === 1) lista = lista.filter(f => f.pago);
   else if(FILTRO_FAT === 2) lista = lista.filter(f => !f.pago);
-  else if(FILTRO_FAT === 3) lista = lista.filter(f => (f.criadoEm||f.data||'').substring(0,10) === HOJE);
+  else if(FILTRO_FAT === 3) lista = lista.filter(docEntraHoje);
 
   if(search) lista = lista.filter(f =>
     f.nome.toLowerCase().includes(search) ||
@@ -1692,7 +1738,12 @@ function renderFaturas() {
   const pagoVal = lista.reduce((s,f) => s + valorPagoDoc(f), 0);
   const pendVal = totVal - pagoVal;
   const filtLabel = ['Todos','Pagos','Pendentes','Hoje'][FILTRO_FAT] + (search ? ` · "${search}"` : '');
-  document.getElementById('subtotaisLabel').textContent = filtLabel + ' (' + lista.length + ')';
+  let labelExtra = '';
+  if(FILTRO_FAT === 3) {
+    const recH = lista.reduce((s,f) => s + recebimentosHoje(f).reduce((a,m) => a + m.valor, 0), 0);
+    labelExtra = ' · recebido hoje ' + recH.toFixed(2) + '€';
+  }
+  document.getElementById('subtotaisLabel').textContent = filtLabel + ' (' + lista.length + ')' + labelExtra;
   document.getElementById('subTotal').textContent = totVal.toFixed(2) + '€';
   document.getElementById('subPago').textContent  = pagoVal.toFixed(2) + '€';
   document.getElementById('subPend').textContent  = pendVal.toFixed(2) + '€';
@@ -1710,6 +1761,17 @@ function renderFaturas() {
     const isNC = f.tipo === 'NC';
     const estadoPag = estadoPagamentoFatura(f);
     const totalPago = totalPagoFatura(f);
+    // No filtro "Hoje": mostrar o valor recebido hoje (por conta / restante / total)
+    let chipHoje = '';
+    if(FILTRO_FAT === 3) {
+      const mH = recebimentosHoje(f);
+      if(mH.length) {
+        const vH = mH.reduce((a,m) => a + m.valor, 0);
+        const tg = mH[mH.length-1].tag;
+        const rot = tg === 'conta' ? 'por conta hoje' : tg === 'restante' ? 'restante hoje' : 'recebido hoje';
+        chipHoje = ` · <span style="color:var(--gr);font-weight:800">💶 ${rot}: ${vH.toFixed(2)}€</span>`;
+      }
+    }
     // Localizar cliente — matching normalizado por nome e denom
     const cli = clienteDaFatura(f);
     const temLoc = cli && (parseFloat(cli.lat) || cli.rua || cli.localidade);
@@ -1719,10 +1781,10 @@ function renderFaturas() {
       <div class="fatBadge ${cor}">${f.tipo}</div>
       <div class="fatInfo">
         <div class="fatNome">${esc(f.nome)}</div>
-        <div class="fatSub">${isNC?`<span style="color:var(--r);font-weight:700">${esc(f.num)}</span>`:esc(f.num)} · ${dataFmt}${f.nif ? ' · NIF: '+f.nif : ''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}${estadoPag==='parcial'?` · <span style="color:var(--s);font-weight:700">💶 pago por conta: ${totalPago.toFixed(2)}€</span>`:''}${(f.notas&&f.notas.length>0)?` · <span style="color:${f.notas.some(n=>!n.resolvida)?'#c9a84c':'var(--gr)'}">⚠️ ${f.notas.length} nota(s)</span>`:''}</div>
+        <div class="fatSub">${isNC?`<span style="color:var(--r);font-weight:700">${esc(f.num)}</span>`:esc(f.num)} · ${dataFmt}${f.nif ? ' · NIF: '+f.nif : ''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}${chipHoje || (estadoPag==='parcial'?` · <span style="color:var(--s);font-weight:700">💶 pago por conta: ${totalPago.toFixed(2)}€</span>`:'')}${(f.notas&&f.notas.length>0)?` · <span style="color:${f.notas.some(n=>!n.resolvida)?'#c9a84c':'var(--gr)'}">⚠️ ${f.notas.length} nota(s)</span>`:''}</div>
         ${moradaCli && !f.pago && !isNC ? `<div class="moradaCli">📍 ${esc(moradaCli)}</div>` : ''}
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
         <div class="fatVal" style="color:${isNC?'var(--gr)':f.pago?'var(--gr)':estadoPag==='parcial'?'var(--s)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</div>
         <div style="display:flex;align-items:center;gap:5px">
           ${btnIr}
@@ -2378,7 +2440,7 @@ function imprimirFaturas() {
   let lista = getFaturasFiltradas();
   if(FILTRO_FAT === 1) lista = lista.filter(f => f.pago);
   else if(FILTRO_FAT === 2) lista = lista.filter(f => !f.pago);
-  else if(FILTRO_FAT === 3) lista = lista.filter(f => (f.criadoEm||f.data||'').substring(0,10) === HOJE);
+  else if(FILTRO_FAT === 3) lista = lista.filter(docEntraHoje);
   if(search) lista = lista.filter(f => f.nome.toLowerCase().includes(search) || f.num.toLowerCase().includes(search));
   lista.sort((a,b) => (a.data||'') < (b.data||'') ? -1 : 1);
 
@@ -2658,7 +2720,7 @@ function renderPagamentosEdit() {
 
   let html = '';
   if(_pagamentosEdit.length === 0) {
-    html += '<div style="text-align:center;color:var(--mu);font-size:12px;padding:6px 0 10px">Sem pagamentos por conta registados</div>';
+    html += '<div style="text-align:center;color:var(--mu);font-size:12px;padding:2px 0 4px">Sem pagamentos por conta registados</div>';
   } else {
     html += _pagamentosEdit.map((p,i) => `
       <div class="pagLinha">
@@ -2671,7 +2733,7 @@ function renderPagamentosEdit() {
   }
 
   if(totalPago > 0.004) {
-    html += `<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:8px 2px 0;color:${falta<=0.004?'var(--gr)':'var(--s)'}">
+    html += `<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:3px 2px 0;color:${falta<=0.004?'var(--gr)':'var(--s)'}">
       <span>${falta<=0.004?'✅ Valor totalmente coberto':'💶 Pago por conta'}</span>
       <span>${totalPago.toFixed(2)}€ / ${valorFat.toFixed(2)}€${falta>0.004?' (falta '+falta.toFixed(2)+'€)':''}</span>
     </div>`;
@@ -2723,7 +2785,7 @@ function renderNotasEdit() {
   const cont = document.getElementById('eFatNotas');
   if(!cont) return;
   if(_notasEdit.length === 0) {
-    cont.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:10px 0">Sem notas registadas</div>';
+    cont.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:2px 0 4px">Sem notas registadas</div>';
     return;
   }
   cont.innerHTML = _notasEdit.map((n, i) => {
