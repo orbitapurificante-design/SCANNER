@@ -1735,6 +1735,20 @@ function docEntraHoje(f) {
   return (f.criadoEm||f.data||'').substring(0,10) === HOJE || recebimentosHoje(f).length > 0;
 }
 
+// Pago / Pendente de uma lista.
+// Filtro "Hoje": PAGO = tudo o que foi recebido hoje (pagamento total, por conta ou restante,
+// mesmo de faturas de dias anteriores); PENDENTE = o que ainda falta receber de cada documento.
+// Restantes filtros: valores acumulados do documento.
+function pagoPendenteLista(lista, totVal) {
+  if(FILTRO_FAT === 3) {
+    const pagoVal = lista.reduce((s,f) => s + recebimentosHoje(f).reduce((a,m) => a + m.valor, 0), 0);
+    const pendVal = lista.reduce((s,f) => s + pendenteAte(f, HOJE), 0);
+    return { pagoVal, pendVal };
+  }
+  const pagoVal = lista.reduce((s,f) => s + valorPagoDoc(f), 0);
+  return { pagoVal, pendVal: totVal - pagoVal };
+}
+
 function renderFaturas() {
   const search = (document.getElementById('searchFat')?.value || '').toLowerCase();
   let lista = getFaturasFiltradas();
@@ -1759,15 +1773,9 @@ function renderFaturas() {
 
   // NC desconta nos totais
   const totVal  = lista.reduce((s,f) => s + (f.tipo==='NC' ? -(parseFloat(f.valor)||0) : (parseFloat(f.valor)||0)), 0);
-  const pagoVal = lista.reduce((s,f) => s + valorPagoDoc(f), 0);
-  const pendVal = totVal - pagoVal;
+  const { pagoVal, pendVal } = pagoPendenteLista(lista, totVal);
   const filtLabel = ['Todos','Pagos','Pendentes','Hoje'][FILTRO_FAT] + (search ? ` · "${search}"` : '');
-  let labelExtra = '';
-  if(FILTRO_FAT === 3) {
-    const recH = lista.reduce((s,f) => s + recebimentosHoje(f).reduce((a,m) => a + m.valor, 0), 0);
-    labelExtra = ' · recebido hoje ' + recH.toFixed(2) + '€';
-  }
-  document.getElementById('subtotaisLabel').textContent = filtLabel + ' (' + lista.length + ')' + labelExtra;
+  document.getElementById('subtotaisLabel').textContent = filtLabel + ' (' + lista.length + ')';
   document.getElementById('subTotal').textContent = totVal.toFixed(2) + '€';
   document.getElementById('subPago').textContent  = pagoVal.toFixed(2) + '€';
   document.getElementById('subPend').textContent  = pendVal.toFixed(2) + '€';
@@ -1792,8 +1800,8 @@ function renderFaturas() {
       if(mH.length) {
         const vH = mH.reduce((a,m) => a + m.valor, 0);
         const tg = mH[mH.length-1].tag;
-        const rot = tg === 'conta' ? 'por conta hoje' : tg === 'restante' ? 'restante hoje' : 'recebido hoje';
-        chipHoje = ` · <span style="color:var(--gr);font-weight:800">💶 ${rot}: ${vH.toFixed(2)}€</span>`;
+        const rot = tg === 'conta' ? 'por conta' : tg === 'restante' ? 'restante' : 'pago';
+        chipHoje = ` · <span style="color:var(--gr);font-weight:800">💶 +${vH.toFixed(2)}€ ${rot}</span>`;
       }
     }
     // Localizar cliente — matching normalizado por nome e denom
@@ -2474,8 +2482,7 @@ function imprimirFaturas() {
   lista.sort((a,b) => (a.data||'') < (b.data||'') ? -1 : 1);
 
   const totVal  = lista.reduce((s,f) => s+(f.tipo==='NC'?-(parseFloat(f.valor)||0):(parseFloat(f.valor)||0)), 0);
-  const pagoVal = lista.reduce((s,f) => s + valorPagoDoc(f), 0);
-  const pendVal = totVal - pagoVal;
+  const { pagoVal, pendVal } = pagoPendenteLista(lista, totVal);
   const hoje = new Date().toLocaleDateString('pt-PT');
 
   const linhas = lista.map((f,i) => {
