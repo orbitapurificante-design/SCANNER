@@ -48,7 +48,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 .inp{width:100%;padding:12px 14px;background:#eef2f7;border:1.5px solid rgba(26,74,138,.14);border-radius:12px;font-size:15px;color:var(--n);outline:none;margin-bottom:10px;font-family:'DM Sans',sans-serif;-webkit-appearance:none}
 .inp:focus{border-color:var(--s);background:#fff}
 .lbl{font-size:11px;font-weight:700;color:var(--mu);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;display:block}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.row2>div{min-width:0}
+input[type=date]{min-width:0;max-width:100%;display:block}
 .bP{width:100%;padding:15px;background:linear-gradient(135deg,var(--g),var(--gl));color:var(--n);border:none;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif}
 .bS{width:100%;padding:13px;background:#eef2f7;color:var(--s);border:1.5px solid rgba(26,74,138,.18);border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:8px}
 .bD{width:100%;padding:13px;background:rgba(231,76,60,.07);color:var(--r);border:1.5px solid rgba(231,76,60,.2);border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif}
@@ -168,6 +170,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 #mEditFat textarea{min-height:44px!important;margin-bottom:6px!important}
 #mEditFat .bD,#mEditFat .bP{padding:11px}
 
+/* ── Topo fixo sem 'salto': o ecrã começa exatamente onde o bloco fixo assenta ── */
+#ecra0,#ecra1,#ecra2{padding-top:60px}
+#btnMigrarSempre,#erroDBMsg,#migracaoDiv{margin-top:8px}
+
+/* Clientes: pesquisa fixa */
+.cliTop{position:sticky;top:60px;z-index:60;background:var(--bg);margin:0 -14px 6px;padding:8px 14px 6px;box-shadow:0 5px 6px -5px rgba(10,22,40,.18)}
+.cliTop .inp{margin-bottom:0;padding:9px 12px}
+
+/* Scanner: formulário compacto */
+.fCompact .lbl{margin-bottom:2px;font-size:10px}
+.fCompact .inp,.fCompact .sel{padding:8px 10px;margin-bottom:0;font-size:14px;border-radius:10px}
+.fCompact .r2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-bottom:6px}
+.fCompact .r2>div{min-width:0}
+
+/* Cliente › faturas: tudo numa linha */
+.docLn{display:flex;align-items:center;gap:6px;flex:1;min-width:0;font-size:12px;font-weight:700;white-space:nowrap}
+.docLn .dNum{min-width:0;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
+.docLn .dDat{flex-shrink:0;color:var(--mu);font-weight:700}
+.docLn .dVal{margin-left:auto;flex-shrink:0;font-weight:800}
+.docExtra{font-size:10px;color:var(--mu);line-height:1.2}
+
 @media print{
   .cab,.nav,.card.no-print,.bP,.bS,.bD{display:none!important}
   .ecra{display:block!important;padding:0!important}
@@ -282,7 +305,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
 
       <div class="scanSticky">
       <div class="scan-box">
-        <div class="ct" style="color:rgba(255,255,255,.6);margin-bottom:10px">QR · Documento</div>
+        <div class="ct" style="color:rgba(255,255,255,.6);margin-bottom:6px;font-size:10px">QR · Documento</div>
         <div class="cWrap" id="cWrap">
           <video id="qrVid" playsinline autoplay muted></video>
           <div class="scan-frame">
@@ -291,14 +314,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
           </div>
           <canvas id="qrCanvas" style="display:none"></canvas>
         </div>
-        <button onclick="toggleCam()" class="bP" id="btnCam" style="margin-bottom:8px">📷 ATIVAR CÂMARA</button>
-        <!-- Alternativa: tirar foto ou escolher da galeria -->
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:13px 8px;background:rgba(255,255,255,.12);border:1.5px dashed rgba(255,255,255,.3);border-radius:14px;color:rgba(255,255,255,.85);font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center">
-            📸 TIRAR FOTO
+        <div style="display:flex;gap:6px">
+          <button onclick="toggleCam()" class="bP" id="btnCam" style="flex:1.5;padding:11px 6px;font-size:13px;border-radius:12px;white-space:nowrap">📷 CÂMARA</button>
+          <label style="flex:1;display:flex;align-items:center;justify-content:center;padding:11px 4px;background:rgba(255,255,255,.12);border:1.5px dashed rgba(255,255,255,.3);border-radius:12px;color:rgba(255,255,255,.9);font-weight:700;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">
+            📸 FOTO
             <input type="file" accept="image/*" capture="environment" onchange="lerQRDeFoto(this)" style="display:none">
           </label>
-          <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:13px 8px;background:rgba(255,255,255,.12);border:1.5px dashed rgba(255,255,255,.3);border-radius:14px;color:rgba(255,255,255,.85);font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center">
+          <label style="flex:1;display:flex;align-items:center;justify-content:center;padding:11px 4px;background:rgba(255,255,255,.12);border:1.5px dashed rgba(255,255,255,.3);border-radius:12px;color:rgba(255,255,255,.9);font-weight:700;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">
             🖼️ GALERIA
             <input type="file" accept="image/*" onchange="lerQRDeFoto(this)" style="display:none">
           </label>
@@ -310,39 +332,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
             1. O ficheiro tem de estar num servidor (não funciona em <b>file://</b>)<br>
             2. Ou aceder via <b>localhost</b><br>
             3. Verifique se deu permissão de câmara ao browser<br>
-            4. Use a opção <b>"LER QR DE IMAGEM"</b> como alternativa
+            4. Use a opção <b>"FOTO / GALERIA"</b> como alternativa
           </div>
         </div>
       </div>
-
       </div><!-- fim scanSticky -->
 
       <!-- Formulário preenchido pelo QR ou manual -->
-      <div class="card">
-        <div class="ct">Dados do Documento</div>
-
-        <label class="lbl">Colaborador</label>
-        <select class="sel" id="fColaborador" style="margin-bottom:10px">
-          <option value="">-- Selecionar --</option>
-          <option value="admin" selected>🔑 Administrador</option>
-          <option value="comercial1">👤 Comercial 1</option>
-          <option value="comercial2">👤 Comercial 2</option>
-          <option value="comercial3">👤 Comercial 3</option>
-        </select>
-
-        <label class="lbl">Cliente</label>
-        <div style="position:relative;margin-bottom:10px">
-          <input class="inp" id="fNome" placeholder="Nome do cliente" style="margin-bottom:0" oninput="filtrarClienteScan(this.value)">
-          <div id="acScan" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid rgba(26,74,138,.2);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:50;max-height:180px;overflow-y:auto"></div>
-        </div>
-
-        <label class="lbl">NIF / Contribuinte</label>
-        <div style="position:relative;margin-bottom:10px">
-          <input class="inp" id="fNif" placeholder="Ex: 123456789" inputmode="numeric" maxlength="9" style="margin-bottom:0;padding-right:110px" oninput="buscarClientePorNif(this.value)">
-          <div id="nifMatch" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--gr);color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;white-space:nowrap">✓ Cliente encontrado</div>
-        </div>
-
-        <div class="row2">
+      <div class="card fCompact" style="padding:10px 12px;margin-bottom:0">
+        <div class="r2">
+          <div>
+            <label class="lbl">Colaborador</label>
+            <select class="sel" id="fColaborador">
+              <option value="">-- Selecionar --</option>
+              <option value="admin" selected>🔑 Administrador</option>
+              <option value="comercial1">👤 Comercial 1</option>
+              <option value="comercial2">👤 Comercial 2</option>
+              <option value="comercial3">👤 Comercial 3</option>
+            </select>
+          </div>
           <div>
             <label class="lbl">Tipo Doc.</label>
             <select class="sel" id="fTipo">
@@ -354,31 +362,48 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
               <option value="NC">NC</option>
             </select>
           </div>
-          <div>
-            <label class="lbl">Nº Documento</label>
-            <input class="inp" id="fNum" placeholder="FT 001/0001" style="margin-bottom:0">
+        </div>
+
+        <div style="margin-bottom:6px">
+          <label class="lbl">Cliente</label>
+          <div style="position:relative">
+            <input class="inp" id="fNome" placeholder="Nome do cliente" oninput="filtrarClienteScan(this.value)">
+            <div id="acScan" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid rgba(26,74,138,.2);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:50;max-height:180px;overflow-y:auto"></div>
           </div>
         </div>
 
-        <div class="row2" style="margin-top:4px">
+        <div class="r2">
+          <div>
+            <label class="lbl">NIF</label>
+            <div style="position:relative">
+              <input class="inp" id="fNif" placeholder="123456789" inputmode="numeric" maxlength="9" oninput="buscarClientePorNif(this.value)">
+              <div id="nifMatch" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);background:var(--gr);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;white-space:nowrap">✓</div>
+            </div>
+          </div>
+          <div>
+            <label class="lbl">Nº Documento</label>
+            <input class="inp" id="fNum" placeholder="FT 001/0001">
+          </div>
+        </div>
+
+        <div class="r2">
           <div>
             <label class="lbl">Data</label>
-            <input class="inp" id="fData" type="date" style="margin-bottom:0">
+            <input class="inp" id="fData" type="date">
           </div>
           <div>
             <label class="lbl">Valor (€)</label>
-            <input class="inp" id="fValor" type="number" step="0.01" placeholder="0.00" style="margin-bottom:0">
+            <input class="inp" id="fValor" type="number" step="0.01" placeholder="0.00">
           </div>
         </div>
 
-        <div class="check-row" style="margin-top:8px">
-          <div class="checkBox" id="chkPago" onclick="togglePagoForm()"></div>
-          <span style="font-size:14px;font-weight:700">Pago / Liquidado</span>
-        </div>
-
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="bS" onclick="limparForm()" style="flex:1;margin-bottom:0">↺ Limpar</button>
-          <button class="bP" onclick="gravarFatura()" style="flex:2">💾 GRAVAR FATURA</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+          <div class="check-row" style="padding:0;flex:1;gap:8px;white-space:nowrap">
+            <div class="checkBox" id="chkPago" onclick="togglePagoForm()"></div>
+            <span style="font-size:13px;font-weight:700">Pago</span>
+          </div>
+          <button class="bS" onclick="limparForm()" style="width:auto;flex:0 0 auto;padding:11px 14px;margin-bottom:0;font-size:13px">↺</button>
+          <button class="bP" onclick="gravarFatura()" style="width:auto;flex:2;padding:11px;font-size:14px">💾 GRAVAR</button>
         </div>
       </div>
 
@@ -442,13 +467,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--n);min-he
   <!-- ══════════════════════════════════════ -->
   <div class="ecra" id="ecra2">
     <div class="s">
-      <div class="card no-print">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <div class="ct" style="margin-bottom:0;flex:1">Pesquisar Cliente</div>
-          <button onclick="recarregarClientes()" style="padding:6px 12px;background:var(--s);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">↺</button>
-          <button id="btnNovoCliente" onclick="abrirNovoCliente()" style="display:none;padding:6px 12px;background:var(--gr);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">+ Novo</button>
+      <div class="cliTop no-print">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input class="inp" id="searchCli" placeholder="🔍 Pesquisar cliente: nome, denominação ou telemóvel..." oninput="renderClientes()" style="flex:1;min-width:0">
+          <button onclick="recarregarClientes()" style="flex-shrink:0;padding:9px 12px;background:var(--s);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">↺</button>
+          <button id="btnNovoCliente" onclick="abrirNovoCliente()" style="display:none;flex-shrink:0;padding:9px 12px;background:var(--gr);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">+ Novo</button>
         </div>
-        <input class="inp" id="searchCli" placeholder="Nome, denominação ou telemóvel..." oninput="renderClientes()" style="margin-bottom:0">
       </div>
       <div class="card">
         <div id="listaCli"></div>
@@ -1368,7 +1392,7 @@ async function toggleCam() {
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-    btn.textContent = '⏹ PARAR CÂMARA';
+    btn.textContent = '⏹ PARAR';
     status.textContent = 'A ler QR Code...';
     status.className = 'qrStatus';
     _camAtiva = true;
@@ -1378,7 +1402,7 @@ async function toggleCam() {
     status.textContent = '❌ Sem acesso à câmara';
     status.className = 'qrStatus err';
     document.getElementById('qrDiag').style.display = 'block';
-    btn.textContent = '📷 ATIVAR CÂMARA';
+    btn.textContent = '📷 CÂMARA';
   }
 }
 
@@ -1387,7 +1411,7 @@ function pararCam() {
   if(vid.srcObject) vid.srcObject.getTracks().forEach(t => t.stop());
   vid.srcObject = null;
   document.getElementById('cWrap').classList.remove('a');
-  document.getElementById('btnCam').textContent = '📷 ATIVAR CÂMARA';
+  document.getElementById('btnCam').textContent = '📷 CÂMARA';
   const status = document.getElementById('qrStatus');
   status.style.display = 'none';
   status.className = 'qrStatus';
@@ -1569,7 +1593,7 @@ function buscarClientePorNif(nif) {
     const nomeExibir = cli.denom || cli.nome;
     document.getElementById('fNome').value = nomeExibir;
     matchEl.style.display = 'block';
-    matchEl.textContent = '✓ ' + nomeExibir.substring(0, 20);
+    matchEl.textContent = '✓';
     matchEl.style.background = 'var(--gr)';
   } else {
     // NIF não encontrado na base — limpa o nome e avisa
@@ -2090,20 +2114,25 @@ function verCliente(nome, manterSelecao) {
       const estadoPag = estadoPagamentoFatura(f);
       const totalPago = totalPagoFatura(f);
       const elegivel = !isNC && !f.pago;
-      const btnIr2 = (!f.pago && temLoc && !isNC) ? `<button class="btnIr" onclick="event.stopPropagation();irParaCliente(${parseFloat(cli.lat)||'null'},${parseFloat(cli.lng)||'null'},'${morada.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>IR</button>` : '';
+      const corVal = isNC?'var(--gr)':f.pago?'var(--gr)':estadoPag==='parcial'?'var(--s)':'var(--r)';
+      const extras = [
+        (f.comercial&&IS_ADMIN) ? `<span style="color:var(--s)">${esc(NOMES_CONFIG[f.comercial]||f.comercial)}</span>` : '',
+        isNC ? '<span style="color:var(--gr);font-weight:700">DESCONTO</span>' : '',
+        estadoPag==='parcial' ? `<span style="color:var(--s);font-weight:700">💶 falta ${((parseFloat(f.valor)||0)-totalPago).toFixed(2)}€</span>` : ''
+      ].filter(Boolean).join(' · ');
       return `<div class="fatRow">
         ${elegivel ? `<div class="checkBox ${_pagCliSelecionados.has(f.id)?'on':''}" style="width:22px;height:22px;flex-shrink:0" onclick="togglePagCliSelecao('${f.id}','${nome.replace(/'/g,"\\'")}')"></div>` : `<div style="width:22px;flex-shrink:0"></div>`}
-        <div class="fatBadge ${{FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo]||'nd'}">${f.tipo}</div>
-        <div class="fatInfo">
-          <div class="fatNome" style="${isNC?'color:var(--r)':''}">${esc(f.num)}</div>
-          <div class="fatSub">${f.data?f.data.split('-').reverse().join('/'):'—'}${f.comercial&&IS_ADMIN?` · <span style="color:var(--s);font-size:10px">${esc(NOMES_CONFIG[f.comercial]||f.comercial)}</span>`:''}${isNC?' · <span style="color:var(--gr);font-weight:700">DESCONTO</span>':''}${estadoPag==='parcial'?` · <span style="color:var(--s);font-weight:700">💶 falta ${((parseFloat(f.valor)||0)-totalPago).toFixed(2)}€</span>`:''}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-weight:800;color:${isNC?'var(--gr)':f.pago?'var(--gr)':estadoPag==='parcial'?'var(--s)':'var(--r)'}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</span>
-          ${btnIr2}
-          <div class="fatPago ${f.pago?'sim':estadoPag==='parcial'?'parcial':'nao'}" onclick="togglePago('${f.id}');verCliente('${nome.replace(/'/g,"\\'")}',true)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        <div class="fatBadge ${{FT:'ft',FS:'fs',FR:'ft',VD:'vd',ND:'nd',NC:'nd'}[f.tipo]||'nd'}" style="width:28px;height:28px;font-size:11px;border-radius:8px">${f.tipo}</div>
+        <div style="flex:1;min-width:0">
+          <div class="docLn">
+            <span class="dNum" style="${isNC?'color:var(--r)':''}">${esc(f.num)}</span>
+            <span class="dDat">${f.data?f.data.substring(0,10).split('-').reverse().join('/'):'—'}</span>
+            <span class="dVal" style="color:${corVal}">${isNC?'-':''}${parseFloat(f.valor).toFixed(2)}€</span>
           </div>
+          ${extras ? `<div class="docExtra">${extras}</div>` : ''}
+        </div>
+        <div class="fatPago ${f.pago?'sim':estadoPag==='parcial'?'parcial':'nao'}" style="width:26px;height:26px" onclick="togglePago('${f.id}');verCliente('${nome.replace(/'/g,"\\'")}',true)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
       </div>`;
     }).join('') : '<div style="text-align:center;padding:20px;color:var(--mu)">Sem faturas</div>'}
